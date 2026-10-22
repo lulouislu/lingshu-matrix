@@ -19,23 +19,19 @@ MacNet Lab 希望把这些线索放在一起：**拓扑说明环境，检测记�
 
 ## 从一张真实场景的示意图开始
 
-```mermaid
-flowchart TB
-    modem["光猫"]
-    r1["路由器 1 / Wi-Fi AP"]
-    r2["路由器 2 / KWRT"]
-    nikki["Nikki 服务"]
-    mac["常开 Mac / 监控主机"]
-    sharing["Mac 打印共享服务与队列"]
-    printer["USB 打印机"]
+```text
+光猫
+├── 有线 ── 路由器 1
+│            └── Wi-Fi ── Mac（无线接口）
+└── 有线 ── 路由器 2（KWRT）
+             ├── 运行：Nikki
+             └── 有线 ── Mac（有线接口）
 
-    modem -->|有线| r1
-    modem -->|有线| r2
-    r1 -.->|Wi-Fi| mac
-    r2 -->|有线| mac
-    r2 ---|运行| nikki
-    mac -->|USB| printer
-    mac ---|运行| sharing
+上面两处 Mac 是同一台设备：
+Mac
+├── 运行：监控与 AI 运维工具
+├── 运行：打印共享服务与队列
+└── USB ── 打印机
 ```
 
 Mac 是同一台设备，网线连接路由器 2，同时通过 Wi-Fi 连接路由器 1；打印机通过 USB 接入 Mac，由 Mac 提供打印共享。两条网络路径共用光猫，不代表两条完全独立的互联网线路。
