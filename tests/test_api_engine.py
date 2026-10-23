@@ -51,11 +51,11 @@ def test_site_save_conflict_and_import_sanitization(client):
     assert not imported["probes"][0]["enabled"]
 
 
-def test_cloud_requires_consent_and_no_silent_fallback(client):
-    response = client.post("/api/ai/answer", json={"question": "为什么断网", "provider": "compatible", "share_evidence": False})
-    assert response.status_code == 400
-    local = client.post("/api/ai/answer", json={"question": "为什么断网"}).json()
-    assert local["provider"] == "local" and local["sent_to"] is None
+def test_ai_integration_is_retired(client):
+    for path in ("answer", "preview", "config"):
+        response = client.post("/api/ai/" + path, json={"provider": "codex", "share_evidence": True})
+        assert response.status_code == 410
+    assert client.get("/api/ai/config").status_code == 410
 
 
 def test_known_hosts_rejects_garbage(client):
@@ -63,25 +63,10 @@ def test_known_hosts_rejects_garbage(client):
     assert client.post("/api/known-hosts", json={"text": "# empty"}).status_code == 400
 
 
-def test_preview_and_retention(client):
-    preview = client.post("/api/ai/preview", json={"question": "check"})
-    assert preview.status_code == 200
-    assert "credential_ref" not in str(preview.json())
-    assert client.post("/api/ai/preview", json={"question": "check", "incident_id": "wrong-site"}).status_code == 400
+def test_retention(client):
     assert client.post("/api/retention", json={"days": 2}).status_code == 200
     assert client.get("/api/state").json()["retention_days"] == 2
     assert client.post("/api/retention", json={"days": 0}).status_code == 422
-
-
-def test_ai_keys_are_not_reused_for_a_changed_destination(client, monkeypatch):
-    stored = []
-    monkeypatch.setattr(client.app.state.vault, "put", lambda item: stored.append(item))
-    assert client.post("/api/ai/config", json={"endpoint": "https://first.invalid/v1", "model": "fixture", "api_token": "fixture-key"}).status_code == 200
-    ref = client.app.state.store.setting("ai_config")["credential_ref"]
-    assert ref and stored[0].id == ref
-    assert client.post("/api/ai/config", json={"endpoint": "https://second.invalid/v1", "model": "fixture"}).status_code == 200
-    assert not client.app.state.store.setting("ai_config")["credential_ref"]
-    assert "credential_ref" not in client.get("/api/ai/config").json()
 
 
 def test_websocket_session_accepts_local_and_rejects_other_origins(client):
@@ -113,6 +98,7 @@ async def test_failure_dedup_recovery_and_unknown(tmp_path):
     incidents = store.incidents("lab")
     assert len(incidents) == 1 and incidents[0]["status"] == "open"
     assert store.evidence(incidents[0]["id"])[0]["body"]["phase"] == "failure"
+    assert store.evidence(incidents[0]["id"])[0]["body"]["topology"]["id"] == "lab"
     await engine.check(site, site.probes[0])
     assert store.incidents("lab")[0]["status"] == "open"
     await engine.check(site, site.probes[0])

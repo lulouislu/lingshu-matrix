@@ -85,7 +85,7 @@ class Engine:
         return result
 
     async def snapshot(self, site, incident, probe=None):
-        evidence = {"phase": "failure" if probe else "manual", "context": self.context, "resources": resource_info(), "recent_samples": self.store.samples(site.id, limit=80)}
+        evidence = {"topology": site.model_dump(), "phase": "failure" if probe else "manual", "context": self.context, "resources": resource_info(), "recent_samples": self.store.samples(site.id, limit=80)}
         if probe and probe.collect_snapshot:
             device = next(d for d in site.devices if d.id == probe.device_id)
             if device.credential_ref:

@@ -6,16 +6,18 @@ import keyring
 from .models import Credential
 
 
-def redact(value):
-    """Redact before persistence and before AI egress; never read worlds/chat logs."""
+def redact(value, field=""):
+    """Redact before persistence and diagnostic export; never read worlds/chat logs."""
     if isinstance(value, dict):
-        return {k: "[已脱敏]" if re.search(r"password|token|secret|private.?key|authorization|cookie|subscription|uuid|player.*name|serial", k, re.I) else redact(v) for k, v in value.items()}
+        return {k: "[已脱敏]" if re.search(r"password|token|secret|private.?key|authorization|cookie|subscription|uuid|player.*name|serial", k, re.I) else redact(v, k) for k, v in value.items()}
     if isinstance(value, list):
-        return [redact(v) for v in value]
+        return [redact(v, field) for v in value]
     if isinstance(value, str):
         value = re.sub(r"-----BEGIN [^-]*PRIVATE KEY-----[\s\S]*?-----END [^-]*PRIVATE KEY-----", "[私钥已移除]", value)
         value = re.sub(r'''(?im)(password|passwd|secret|token|authorization|cookie|api[_-]?key|subscription|(?:USB )?SerialNumber|serial number)["']?\s*[:=]\s*[^\r\n]+''', r"\1=[已脱敏]", value)
         value = re.sub(r"https?://[^\s\"<>]+", "[URL 已移除]", value)
+        if field in {"id", "probe", "device_id", "source", "target", "incident", "source_interface", "target_interface"}:
+            return value[:30000]
         value = re.sub(r"\b[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}\b", "[UUID 已移除]", value)
         return value[:30000]
     return value

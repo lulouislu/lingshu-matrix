@@ -2,14 +2,14 @@
 
 # 🌐 MacNet Lab
 
-**Visual Network Topology, Interface-Aware Monitoring & Evidence-Driven AI Troubleshooting**<br />
-**可视化网络拓扑、接口感知监控与 AI 证据排障工作台**
+**Visual Network Topology, Interface-Aware Monitoring & Portable Diagnostic Reports**<br />
+**可视化网络拓扑、接口感知监控与诊断报告工作台**
 
 [![Checks](https://github.com/lulouislu/macnet-lab/actions/workflows/checks.yml/badge.svg)](https://github.com/lulouislu/macnet-lab/actions/workflows/checks.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Target: macOS](https://img.shields.io/badge/Target-macOS-brightgreen.svg)](#quick-start-en)
 [![Stage: Development Preview](https://img.shields.io/badge/Stage-Development%20Preview-orange.svg)](#roadmap-en)
-[![AI: Opt-in](https://img.shields.io/badge/AI-Opt--in-purple.svg)](#ai-en)
+[![Reports: Local](https://img.shields.io/badge/Reports-Local%20Export-purple.svg)](#reports-en)
 
 [简体中文](#zh-cn) · [English](#english) · [使用手册](docs/USAGE_ZH.md) · [Mac 验收清单](docs/MAC_ACCEPTANCE.md)
 
@@ -29,7 +29,7 @@ _开发预览中的示例拓扑，未配置真实网络地址或启用自动检�
 
 网络出问题时，单独一条 Ping 结果往往解释不了：MacBook 正接在哪个 AP 下？有线与 Wi-Fi 的出口是否不同？手机打印失败，是网络、Mac 的共享服务，还是 USB 打印机的问题？Minecraft 连不上，又是主机资源还是服务响应出了问题？
 
-**MacNet Lab** 用“拼积木”的方式描述网络，把**用户声明的拓扑、当前接入位置、检测路径和故障证据**放在一起，再交给本地摘要或用户选择的 AI 分析。
+**MacNet Lab** 用“拼积木”的方式描述网络，把**用户声明的拓扑、当前接入位置、检测路径和故障证据**放在一起，导出为完整的问题日记（Markdown）或 JSON，由用户自行交给任何 AI 排查。软件不接入模型，不需要 API 密钥或 AI 登录。
 
 - **现场维护**：MacBook 接入机房网线或任意一个 AP，从当前位置开展获授权的检测。
 - **常驻监控**：常开 Mac 调度已启用的检测，记录故障与恢复。
@@ -40,15 +40,15 @@ _开发预览中的示例拓扑，未配置真实网络地址或启用自动检�
 
 ### ✨ 核心特性
 
-| 模块              | 当前能力                                                                                                |
-| ----------------- | ------------------------------------------------------------------------------------------------------- |
-| 🧩 拓扑工作台     | 拖拽设备、接口级连线、多站点、JSON 导入导出、PNG 与浏览器打印；区分有线、Wi-Fi、USB、管理关系和服务依赖 |
-| 📡 接口感知检测   | ICMP、TCP、DNS、HTTP(S)、显式代理与 Mihomo API；已实现 macOS IPv4 接口绑定，无法绑定时不偷偷回退        |
-| 🗺️ 当前接入位置   | 接口、地址与可读取的网关、DNS、Wi-Fi 信息；结合已配置 BSSID 清单关联 AP，不凭 SSID 猜完整网络           |
-| 📦 故障黑匣子     | 连续失败阈值、重复事件合并、异常快照、恢复记录、接入变化与采集中断、证据导出                            |
-| 🖨️ Mac 托管服务   | CUPS / USB 只读采集、Minecraft Java / Bedrock 状态、主机及指定 PID 的资源信息                           |
-| 🔐 凭据与只读 SSH | 系统钥匙串、显式核实的主机公钥、固定命令组；不开放任意 Shell，不自动安装远程探针                        |
-| 🧠 AI 证据排障    | 本地规则摘要、实验性 Codex 适配、OpenAI 兼容 API；提供外发预览、明确同意与错误反馈，不静默切换服务商    |
+| 模块              | 当前能力                                                                                                                |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| 🧩 拓扑工作台     | 拖拽设备、接口级连线、多站点、JSON 导入导出、PNG 与浏览器打印；区分有线、Wi-Fi、USB、管理关系和服务依赖                 |
+| 📡 接口感知检测   | ICMP、TCP、DNS、HTTP(S)、显式代理与 Mihomo API；已实现 macOS IPv4 接口绑定，无法绑定时不偷偷回退                        |
+| 🗺️ 当前接入位置   | 接口、地址与可读取的网关、DNS、Wi-Fi 信息；结合已配置 BSSID 清单关联 AP，不凭 SSID 猜完整网络                           |
+| 📦 故障黑匣子     | 连续失败阈值、重复事件合并、异常快照、恢复记录、接入变化与采集中断、证据导出                                            |
+| 🖨️ Mac 托管服务   | CUPS / USB 只读采集、Minecraft Java / Bedrock 状态、主机及指定 PID 的资源信息                                           |
+| 🔐 凭据与只读 SSH | 系统钥匙串、显式核实的主机公钥、固定命令组；不开放任意 Shell，不自动安装远程探针                                        |
+| 📄 诊断导出       | 用户问题描述、拓扑、接入观测、全部保留的检测/故障/快照/事件、UTC 时间线；导出 Markdown 与版本化 JSON，由用户自行交给 AI |
 
 **状态有边界：** 未知、暂停和监控中断不算正常；本机可达不等于其他终端或公网玩家可达。打印状态采集不等于手机发现或实际打印成功；Minecraft 状态不包含未采集的 TPS / MSPT。
 
@@ -63,7 +63,7 @@ _开发预览中的示例拓扑，未配置真实网络地址或启用自动检�
 flowchart LR
     A["1. 描述网络拓扑<br/>Model the topology"] --> B["2. 配置检测与接口<br/>Configure probes and interfaces"]
     B --> C["3. 本机采集与故障快照<br/>Monitor and capture evidence"]
-    C --> D["4. 本地摘要或 AI 分析<br/>Local summary or opt-in AI"]
+    C --> D["4. 导出问题日记或 JSON<br/>Export Markdown or JSON"]
     D -. "人工选择下一项只读检查<br/>Human-selected read-only checks" .-> B
 ```
 
@@ -72,11 +72,11 @@ flowchart LR
 1. **拓扑建模**：拖入设备，连接具体接口，为服务补充名称和备注；拓扑是声明，不冒充自动发现结果。
 2. **配置检测**：明确目标、端口、源接口、间隔与失败阈值。先手动运行，再按需启用自动监控。
 3. **采集与留证**：由运行工作台的 Mac 发起检测；故障达到阈值后保存快照，SSH 补采需另行配置授权。
-4. **证据排障**：查看本地摘要，或确认将脱敏证据发送给所选 AI；由用户决定下一步检查。
+4. **导出排查资料**：在「诊断导出」填写症状、发生时间、影响范围、近期改动和尝试结果；预览后下载 Markdown 日记或 JSON，自行附给 AI。
 
 ### 🛠️ 快速开始
 
-准备 **macOS、Python 3.11+、Node.js 22.12+（建议 24）和 Git**：
+准备 **macOS、Python 3.11+、Node.js 22.12+（macOS 12 使用 22.x；Node 24 需 macOS 13.5+）和 Git**：
 
 ```bash
 git clone https://github.com/lulouislu/macnet-lab.git
@@ -91,23 +91,27 @@ bash scripts/start-macos.command
 
 登录常驻、开发预览、备份、接口 DNS 配置与详细限制见 **[使用手册](docs/USAGE_ZH.md)**。当前不提供 Docker Compose 部署或签名的 `.app` / `.dmg` 安装包。
 
-### 🛡️ 安全与 AI 接入
+### 📄 导出文件，自己选择 AI
 
-- **本地优先**：仅监听 `127.0.0.1:8765`；拓扑、历史与快照保存在本地 SQLite，凭据进入系统钥匙串。
-- **默认不外发**：本地规则摘要不调用模型。云端分析需预览资料并明确同意；API 调用可能产生费用。
-- **Codex 独立配置**：安装官方 CLI 后，使用 `.venv/bin/macnet-lab --codex-login` 登录本工具的独立配置。适配器关闭执行类能力并检查外部 MCP 清单；真实账号问答仍待验收。
-- **提供商可选**：支持 OpenAI 兼容 HTTPS API 和本机 HTTP 模型服务；更换地址不会沿用另一地址的密钥。
-- **分享前检查**：规则脱敏不替代人工确认，IP、SSID、BSSID、设备名称和备注仍可能识别你的网络。
-- **当前只读**：不修改 LAN、DHCP、防火墙、路由、打印配置、Minecraft 世界或玩家权限。
+打开「诊断导出」→ 填写问题 → **生成并预览诊断报告** → 下载 `.md` 或 `.json` → 将文件附给你自己的 AI 对话。可复制随附的排查说明，无需在软件内登录或配置模型。
+
+- **问题日记**：按 UTC 排列检测、故障开始/结束、快照和接入/采集中断事件，保留 ID 和已保存详情。
+- **诊断 JSON**：`macnet.diagnostic-report` / `schema_version: 1`；包含结构化拓扑、源接口、统计、覆盖范围和问题描述，便于 AI 或其他工具读取。
+- **完整范围**：导出该站点当前仍保留的全部记录，不受界面最近 300 条检测、300 个故障、100 条事件的列表限制。指定重点故障不会删除前后上下文。
+- **本地处理**：生成与下载均不调用 AI、不上传报告。采集本身仍会访问你已配置的检测目标。
+- **分享前检查**：常见凭据和私钥脱敏，URL 查询串/片段移除；IP、SSID、BSSID、主机名和备注保留。不要公开上传真实网络报告。
+
+[合成示例日记](docs/examples/diagnostic.md) · [合成示例 JSON](docs/examples/diagnostic.json) · [导出格式说明](docs/DIAGNOSTIC_EXPORT.md)
+
+已清理或从未采集的数据无法补回，采集时已截断的输出也无法还原；这些边界写在每份报告中。拓扑配置 JSON 仍用于导入/导出，与诊断报告分开。旧软件内 AI 接口返回 `410`，不再调用模型；现有网络和服务配置不变。
 
 ### 🗺️ 路线图
 
 - [x] 拖拽拓扑、接口建模、多站点与配置存取。
 - [x] 本机检测调度、检测记录、故障快照与恢复状态。
 - [x] 打印 / USB、Minecraft、KWRT / Nikki 的限定只读采集适配。
-- [x] 本地摘要、AI 外发预览与提供商适配。
+- [x] 问题日记、完整保留范围的诊断 JSON、脱敏预览和可复制的 AI 排查说明。
 - [ ] 真实 Mac、单 AC 多 AP、双接口不串路及休眠恢复验收。
-- [ ] 真实 Codex / 自定义模型问答验收。
 - [ ] 历史趋势图、IPv6 主动探测、控制器深度指标与受限 Minecraft 日志。
 - [ ] 参数化受控修复、设备端 watchdog、回滚验证与审计。
 - [ ] 签名 / 公证的 macOS 应用包与芯片架构兼容性确认。
@@ -124,7 +128,7 @@ bash scripts/start-macos.command
 
 A successful ping rarely tells the whole story. Which AP is the MacBook connected to? Are Ethernet and Wi-Fi using different paths? Is a printing failure caused by the network, the Mac's shared print service, or the USB printer? Is a Minecraft connection issue related to host resources or the service itself?
 
-**MacNet Lab** combines a block-building topology editor with **declared network relationships, the current observation point, path-specific checks and incident evidence**. Use a local summary or explicitly selected AI provider to interpret that evidence.
+**MacNet Lab** combines a block-building topology editor with **declared network relationships, the current observation point, path-specific checks and incident evidence**. Export a Markdown problem diary or versioned JSON and give it to any AI yourself. No built-in model connection, AI login or API key is needed.
 
 - **Field maintenance**: connect a MacBook by Ethernet or through an AP and run authorized checks from that location.
 - **Resident monitoring**: keep a Mac online to schedule enabled checks and retain incident and recovery records.
@@ -143,7 +147,7 @@ A successful ping rarely tells the whole story. Which AP is the MacBook connecte
 | 📦 Incident evidence      | Consecutive-failure thresholds, deduplicated incidents, bounded snapshots, recovery records, access changes, collection gaps and evidence export                                    |
 | 🖨️ Mac-hosted services    | Read-only CUPS/USB collection, Minecraft Java/Bedrock status, host resources and optional per-PID metrics                                                                           |
 | 🔐 Credentials and SSH    | OS Keychain, explicitly verified host keys and fixed read-only command presets; no arbitrary shell or automatic remote-agent installation                                           |
-| 🧠 Evidence-driven AI     | Local rule summaries, an experimental Codex adapter and OpenAI-compatible APIs; outbound evidence preview, explicit consent and no silent provider fallback                         |
+| 📄 Diagnostic export      | User symptoms, topology, observation context, all retained samples/incidents/evidence/events and a UTC timeline; Markdown and versioned JSON for manual AI handoff                  |
 
 Unknown, paused and interrupted observations are not healthy results. Reachability from this Mac does not establish reachability from another client or the public Internet. Print-service observations do not prove mobile discovery or a completed print job; Minecraft status does not include uncollected TPS/MSPT metrics.
 
@@ -154,13 +158,13 @@ The diagram above follows the actual implementation:
 1. **Model** devices, interfaces, physical links, management relationships and services. Keep declared topology separate from observations.
 2. **Configure** targets, ports, source interfaces, intervals and failure thresholds. Run a manual check before enabling automatic monitoring.
 3. **Observe** from the Mac running the workbench. Capture incident snapshots; optional SSH evidence collection requires explicit credential and host-key setup.
-4. **Analyze** evidence locally or send it to a selected AI provider after consent. The user decides the next read-only check.
+4. **Export** a problem diary or JSON after previewing it. Attach the file to your own AI conversation and choose the next read-only check yourself.
 
 <a id="quick-start-en"></a>
 
 ### 🛠️ Quick start
 
-Requirements: **macOS, Python 3.11+, Node.js 22.12+ (24 suggested), and Git**.
+Requirements: **macOS, Python 3.11+, Node.js 22.12+ (use 22.x on macOS 12; Node 24 requires macOS 13.5+), and Git**.
 
 ```bash
 git clone https://github.com/lulouislu/macnet-lab.git
@@ -175,18 +179,23 @@ Select a device, add a check, and choose **Run once**. To collect continuously, 
 
 The **[Chinese usage guide](docs/USAGE_ZH.md)** covers optional login startup, development previews, backups and interface-specific DNS. There is currently no Docker Compose deployment or signed `.app`/`.dmg` installer.
 
-<a id="ai-en"></a>
+<a id="reports-en"></a>
 
-### 🛡️ Security and AI integration
+### 📄 Export first, choose your own AI
 
-- **Local-first**: the service binds only to `127.0.0.1:8765`. SQLite stores local configuration and evidence; OS Keychain stores credentials.
-- **Explicit outbound consent**: the default rule summary uses no model. Preview evidence before choosing a cloud provider; usage may incur account or API charges.
-- **Isolated Codex profile**: after installing the official CLI, run `.venv/bin/macnet-lab --codex-login`. The adapter disables execution capabilities and checks for external MCP servers before starting a model turn. Real-account inference remains unverified.
-- **Provider choice**: use an OpenAI-compatible HTTPS endpoint or a local HTTP model service. Changing endpoints does not reuse another endpoint's key.
-- **Review before sharing**: rule-based redaction does not remove every identifying detail. IPs, SSIDs, BSSIDs, device names and notes may still identify the network.
-- **Read-only operations**: no LAN, DHCP, firewall, routing, printing, Minecraft-world or player-permission changes.
+Open **诊断导出 (Diagnostic export)**, describe the issue, preview the report, and download Markdown or JSON. Attach it to your own AI conversation; copy the included troubleshooting instructions if helpful. The application does not connect to a model or require AI credentials.
 
-Active network probes currently focus on IPv4. Interface-bound hostname checks require an explicit IPv4 DNS server. SSH evidence collection uses the system management path; selecting interface binding for SSH returns an unsupported/unknown result rather than silently using another path. See the usage guide for data-retention and output-size limits.
+- **Markdown diary**: a UTC timeline of samples, incident starts/ends, snapshots and access/collection events, with record IDs and saved details.
+- **Versioned JSON**: `macnet.diagnostic-report`, schema version 1, with topology, source interfaces, observations, user notes, counts and coverage limits.
+- **All retained records**: no UI history/incident/event row caps. A focus incident marks priority without filtering out surrounding evidence.
+- **Local generation**: no model request or report upload. Configured monitoring probes still contact their authorized targets.
+- **Review before sharing**: common secrets and private keys are redacted; URL credentials, queries and fragments are removed. IPs, SSIDs, BSSIDs, hostnames and notes remain identifying.
+
+[Markdown example](docs/examples/diagnostic.md) · [JSON example](docs/examples/diagnostic.json) · [Format reference](docs/DIAGNOSTIC_EXPORT.md). Examples contain synthetic data only.
+
+Retention cleanup and capture-time truncation cannot be reversed; every report states these limits. Topology configuration export/import remains separate from diagnostic reports. Retired in-app AI endpoints return `410` and cannot invoke a model. No network, printing or Minecraft configuration is changed.
+
+Active probes focus on IPv4. Bound hostname checks require an explicit IPv4 DNS server. SSH uses the system management path; interface-bound SSH returns unknown rather than falling back.
 
 <a id="roadmap-en"></a>
 
@@ -195,9 +204,8 @@ Active network probes currently focus on IPv4. Interface-bound hostname checks r
 - [x] Modular topology editor, interface model, multiple sites and configuration persistence.
 - [x] Local probe scheduling, result history, incident snapshots and recovery states.
 - [x] Bounded read-only adapters for printing/USB, Minecraft and KWRT/Nikki.
-- [x] Local summaries, AI evidence preview and provider adapters.
+- [x] Markdown problem diaries, complete retained-record JSON, redaction preview and copyable AI handoff instructions.
 - [ ] Physical Mac acceptance: AC/AP sites, independent network paths, roaming and sleep/resume.
-- [ ] Real Codex and custom-provider inference acceptance.
 - [ ] History charts, active IPv6 probes, controller-specific metrics and limited Minecraft logs.
 - [ ] Parameterized remediation, device-side watchdogs, rollback verification and audit trails.
 - [ ] Signed/notarized macOS packages and architecture compatibility validation.

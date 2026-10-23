@@ -133,6 +133,24 @@ class Store:
         with self.connect() as c:
             return [{**dict(r), "body": json.loads(r["body"])} for r in c.execute("SELECT * FROM events WHERE site=? ORDER BY id DESC LIMIT 100", (site,))]
 
+    def diagnostic_records(self, site_id):
+        """One read snapshot, without the UI's history/incident/event row limits."""
+        with self.connect() as c:
+            c.execute("BEGIN")
+            row = c.execute("SELECT body FROM sites WHERE id=?", (site_id,)).fetchone()
+            if not row:
+                raise ValueError("站点不存在")
+            samples = [{"id": r["id"], "probe": r["probe"], "at": r["at"], **json.loads(r["body"])}
+                       for r in c.execute("SELECT * FROM samples WHERE site=? ORDER BY at,id", (site_id,))]
+            incidents = [{**dict(r), "body": json.loads(r["body"])}
+                         for r in c.execute("SELECT * FROM incidents WHERE site=? ORDER BY started,id", (site_id,))]
+            evidence = [{**dict(r), "body": json.loads(r["body"])} for r in c.execute(
+                "SELECT e.* FROM evidence e JOIN incidents i ON e.incident=i.id WHERE i.site=? ORDER BY e.at,e.id", (site_id,))]
+            events = [{**dict(r), "body": json.loads(r["body"])}
+                      for r in c.execute("SELECT * FROM events WHERE site=? ORDER BY at,id", (site_id,))]
+            return {"topology": json.loads(row[0]), "samples": samples, "incidents": incidents,
+                    "evidence": evidence, "events": events}
+
     def cleanup(self, days=7):
         cutoff = time.time() - days * 86400
         with self.connect() as c:

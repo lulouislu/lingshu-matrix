@@ -132,27 +132,13 @@ class Credential(Model):
         return value
 
 
-class AIRequest(Model):
-    question: str = Field(min_length=1, max_length=4000)
-    incident_id: str = ""
-    provider: Literal["local", "codex", "compatible"] = "local"
-    share_evidence: bool = False
-
-
-class AIConfig(Model):
-    endpoint: str = "https://api.deepseek.com/v1"
-    model: str = "deepseek-chat"
-    api_token: str = ""
-
-    @field_validator("endpoint")
-    @classmethod
-    def endpoint_valid(cls, value):
-        u = urlsplit(value)
-        if u.scheme != "https" and not (u.scheme == "http" and u.hostname in ("localhost", "127.0.0.1", "::1")):
-            raise ValueError("AI 地址必须使用 HTTPS，只有本机端点可使用 HTTP")
-        if u.username or u.password or not u.hostname or u.query or u.fragment:
-            raise ValueError("AI 地址不能包含凭据、查询串或片段")
-        return value.rstrip("/")
+class DiagnosticRequest(Model):
+    issue: str = Field(default="", max_length=4000)
+    observed_at: str = Field(default="", max_length=200)
+    impact: str = Field(default="", max_length=2000)
+    recent_changes: str = Field(default="", max_length=4000)
+    attempts: str = Field(default="", max_length=4000)
+    incident_id: str = Field(default="", max_length=64)
 
 
 def sanitized_export(site: Site) -> dict:

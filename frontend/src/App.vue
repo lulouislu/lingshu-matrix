@@ -30,7 +30,6 @@ import {
   Download,
   Upload,
   Settings,
-  MessageSquare,
   Clock,
   ChevronRight,
   Trash2,
@@ -99,22 +98,27 @@ const history = ref<Sample[]>([]),
   events = ref<any[]>([]),
   selectedIncident = ref(""),
   evidence = ref<any>(null),
-  aiPreview = ref<any>(null),
   sampleView = ref<Sample | null>(null);
 const probeDraft = ref<Probe | null>(null),
-  settingsTab = ref("ai"),
+  settingsTab = ref("general"),
   credential = ref({ id: "", password: "", private_key: "", api_token: "" }),
   knownHosts = ref("");
-const aiConfig = ref({
-    endpoint: "https://api.deepseek.com/v1",
-    model: "deepseek-chat",
-    api_token: "",
-  }),
-  provider = ref("local"),
-  shareEvidence = ref(false),
-  question = ref("帮我分析当前网络的异常，给出依据和下一步检查。"),
-  answer = ref(""),
-  aiBusy = ref(false);
+const reportNotes = ref({
+  issue: "",
+  observed_at: "",
+  impact: "",
+  recent_changes: "",
+  attempts: "",
+});
+const diagnostic = ref<{ report: any; markdown: string } | null>(null);
+const reportPreview = ref(false);
+watch(
+  [reportNotes, selectedIncident],
+  () => {
+    diagnostic.value = null;
+  },
+  { deep: true },
+);
 let timer: ReturnType<typeof setInterval>,
   socket: WebSocket | undefined,
   reconnect: ReturnType<typeof setTimeout> | undefined;
@@ -217,8 +221,15 @@ async function refresh() {
       : null;
     selected.value = "";
     selectedIncident.value = "";
-    answer.value = "";
-    shareEvidence.value = false;
+    diagnostic.value = null;
+    reportPreview.value = false;
+    reportNotes.value = {
+      issue: "",
+      observed_at: "",
+      impact: "",
+      recent_changes: "",
+      attempts: "",
+    };
     dirty.value = false;
     renderGraph();
     await nextTick();
@@ -470,22 +481,38 @@ async function openEvidence(id: string) {
   selectedIncident.value = id;
   evidence.value = await api("/sites/" + site.value!.id + "/incidents/" + id);
 }
-async function askAI() {
-  aiBusy.value = true;
-  try {
-    if (dirty.value) throw new Error("先保存拓扑，确保 AI 分析的是当前配置");
-    const result = await api("/ai/answer", {
-      question: question.value,
+async function prepareReport() {
+  await guarded(async () => {
+    if (!site.value) throw new Error("先选择站点");
+    if (dirty.value) await save();
+    diagnostic.value = await api("/sites/" + site.value.id + "/diagnostics", {
+      ...reportNotes.value,
       incident_id: selectedIncident.value,
-      provider: provider.value,
-      share_evidence: shareEvidence.value,
     });
-    answer.value = result.answer;
-  } catch (e) {
-    notify(e);
-  } finally {
-    aiBusy.value = false;
-  }
+    reportPreview.value = true;
+  });
+}
+function downloadReport(format: "json" | "md") {
+  if (!diagnostic.value) return;
+  const stamp = diagnostic.value.report.generated_at_utc.replace(/[:.]/g, "-");
+  download(
+    "macnet-diagnostic-" + stamp + "." + format,
+    format === "json"
+      ? JSON.stringify(diagnostic.value.report, null, 2)
+      : diagnostic.value.markdown,
+    format === "json"
+      ? "application/json;charset=utf-8"
+      : "text/markdown;charset=utf-8",
+  );
+}
+async function copyGuide() {
+  await guarded(async () => {
+    if (!diagnostic.value) return;
+    await navigator.clipboard.writeText(
+      diagnostic.value.report.ai_handoff_instructions,
+    );
+    toast.value = "排查说明已复制；请自行将报告文件附给 AI";
+  });
 }
 async function saveCredential() {
   await guarded(async () => {
@@ -498,13 +525,6 @@ async function saveCredential() {
     markDirty();
     await save();
     toast.value = "凭据已写入系统钥匙串，未写入拓扑文件";
-  });
-}
-async function saveAIConfig() {
-  await guarded(async () => {
-    await api("/ai/config", aiConfig.value);
-    aiConfig.value.api_token = "";
-    toast.value = "AI 提供商配置已保存";
   });
 }
 async function saveKnownHosts() {
@@ -543,7 +563,6 @@ onMounted(async () => {
   try {
     await api("/session");
     await refresh();
-    aiConfig.value = { ...aiConfig.value, ...(await api("/ai/config")) };
     ready.value = true;
     live();
     timer = setInterval(() => refresh().catch(notify), 15000);
@@ -590,11 +609,11 @@ window.addEventListener("beforeunload", (e) => {
           <Activity :size="18" /><span>故障黑匣子</span
           ><b v-if="openCount">{{ openCount }}</b></button
         ><button
-          aria-label="AI 排障"
-          :class="{ active: panel === 'ai' }"
-          @click="panel = 'ai'"
+          aria-label="诊断导出"
+          :class="{ active: panel === 'report' }"
+          @click="panel = 'report'"
         >
-          <MessageSquare :size="18" /><span>AI 排障</span></button
+          <FileText :size="18" /><span>诊断导出</span></button
         ><button
           aria-label="连接设置"
           :class="{ active: panel === 'settings' }"
@@ -1187,87 +1206,111 @@ window.addEventListener("beforeunload", (e) => {
               </div>
             </div></template
           >
-          <template v-else-if="panel === 'ai'"
-            ><div class="inspector-heading">
-              <span>AI 证据排障</span><MessageSquare :size="17" />
+          <template v-else-if="panel === 'report'">
+            <div class="inspector-heading">
+              <span>诊断导出</span><FileText :size="17" />
             </div>
-            <div class="inspector-body ai-panel">
-              <label
-                >分析方式<select
-                  v-model="provider"
-                  @change="shareEvidence = false"
-                >
-                  <option value="local">本地规则摘要 · 不外发</option>
-                  <option value="codex">Codex · 独立配置登录</option>
-                  <option value="compatible">
-                    OpenAI 兼容 API · 自定义提供商
-                  </option>
-                </select></label
-              ><label
-                >关联故障事件<select v-model="selectedIncident">
-                  <option value="">当前站点与最近记录</option>
-                  <option v-for="i in incidents" :value="i.id" :key="i.id">
-                    {{ i.body.probe_label }} · {{ fmtTime(i.started) }}
-                  </option>
-                </select></label
-              >
-              <div v-if="provider !== 'local'" class="egress-note">
-                <strong>证据发送目的地</strong>
-                <p>
-                  {{
-                    provider === "compatible"
-                      ? aiConfig.endpoint
-                      : "MacNet 专用 Codex 配置的模型提供商"
-                  }}
-                </p>
-                <button
-                  class="text-button"
-                  @click="
-                    guarded(async () => {
-                      aiPreview = await api('/ai/preview', {
-                        question,
-                        incident_id: selectedIncident,
-                        provider,
-                      });
-                    })
-                  "
-                >
-                  预览将发送的证据</button
-                ><label class="check-row"
-                  ><input
-                    type="checkbox"
-                    v-model="shareEvidence"
-                  />同意发送当前站点拓扑与脱敏证据</label
+            <div class="inspector-body report-panel">
+              <div class="tip">
+                <span
+                  >下载问题日记或 JSON，自行交给 AI。无需账号或 API 密钥。</span
                 >
               </div>
               <label
-                >你想排查什么？<textarea v-model="question" rows="4" /></label
-              ><button
-                class="button primary full"
-                :disabled="aiBusy || busy"
-                @click="askAI"
+                >问题描述<textarea
+                  v-model="reportNotes.issue"
+                  rows="3"
+                  maxlength="4000"
+                  placeholder="例如：手机无法打印，但 Mac 能看到 USB 打印机"
+                />
+              </label>
+              <details class="report-background">
+                <summary>补充背景（可选）</summary>
+                <label
+                  >何时发生<input
+                    v-model="reportNotes.observed_at"
+                    maxlength="200"
+                    placeholder="日期、时间与时区；不确定可留空"
+                /></label>
+                <label
+                  >影响范围<textarea
+                    v-model="reportNotes.impact"
+                    rows="2"
+                    maxlength="2000"
+                    placeholder="哪些设备、接口或服务受影响？"
+                  />
+                </label>
+                <label
+                  >最近改动<textarea
+                    v-model="reportNotes.recent_changes"
+                    rows="2"
+                    maxlength="4000"
+                  />
+                </label>
+                <label
+                  >已尝试的操作与结果<textarea
+                    v-model="reportNotes.attempts"
+                    rows="2"
+                    maxlength="4000"
+                  />
+                </label>
+              </details>
+              <label
+                >重点故障<select v-model="selectedIncident">
+                  <option value="">不指定</option>
+                  <option v-for="i in incidents" :value="i.id" :key="i.id">
+                    {{ i.body.probe_label }} · {{ fmtDate(i.started) }}
+                  </option>
+                </select></label
               >
-                <MessageSquare :size="15" />{{
-                  aiBusy ? "正在分析…" : "分析所选证据"
+              <p class="muted">
+                导出此站点全部保留记录；重点故障只作标记，不删前后证据。
+              </p>
+              <button
+                class="button primary full"
+                :disabled="busy || !site"
+                @click="prepareReport"
+              >
+                <FileText :size="15" />{{
+                  busy ? "正在生成…" : "生成并预览诊断报告"
                 }}
               </button>
-              <p v-if="!answer" class="muted">
-                模型只获得所选证据，不拥有任意 Shell 或网络修改权限。AI
-                不可用时，监控仍可继续。
+              <template v-if="diagnostic">
+                <p class="muted">
+                  {{ fmtDate(diagnostic.report.generated_at) }} 生成 ·
+                  {{ diagnostic.report.coverage.counts.samples }} 条检测 ·
+                  {{ diagnostic.report.coverage.counts.incidents }} 个故障
+                </p>
+                <div class="report-actions">
+                  <button class="button" @click="downloadReport('md')">
+                    下载问题日记 .md
+                  </button>
+                  <button class="button" @click="downloadReport('json')">
+                    下载诊断 JSON
+                  </button>
+                  <button class="button" @click="reportPreview = true">
+                    查看报告
+                  </button>
+                  <button class="text-button" @click="copyGuide">
+                    复制给 AI 的排查说明
+                  </button>
+                </div>
+              </template>
+              <p class="muted">
+                常见凭据会脱敏；IP、SSID、BSSID、主机名和备注保留。分享前请检查，勿将原始报告公开上传。
               </p>
-              <div v-if="answer" class="ai-answer">{{ answer }}</div>
-            </div></template
-          >
+            </div>
+          </template>
           <template v-else
             ><div class="inspector-heading">
               <span>连接设置</span><Settings :size="17" />
             </div>
             <div class="settings-tabs">
               <button
-                :class="{ active: settingsTab === 'ai' }"
-                @click="settingsTab = 'ai'"
+                :class="{ active: settingsTab === 'general' }"
+                @click="settingsTab = 'general'"
               >
-                AI 提供商</button
+                常规</button
               ><button
                 :class="{ active: settingsTab === 'credentials' }"
                 @click="settingsTab = 'credentials'"
@@ -1281,25 +1324,14 @@ window.addEventListener("beforeunload", (e) => {
               </button>
             </div>
             <div class="inspector-body">
-              <template v-if="settingsTab === 'ai'"
+              <template v-if="settingsTab === 'general'"
                 ><label v-if="site"
                   >站点名称<input v-model="site.name" @input="markDirty"
                 /></label>
                 <p class="muted">
-                  Codex 使用独立配置，不继承桌面端工具。先在终端运行 macnet-lab
-                  --codex-login。自定义 API 配置如下；密钥仅存入系统钥匙串。
-                </p>
-                <label>API 基础地址<input v-model="aiConfig.endpoint" /></label
-                ><label>模型名称<input v-model="aiConfig.model" /></label
-                ><label
-                  >API 密钥<input
-                    v-model="aiConfig.api_token"
-                    type="password"
-                    autocomplete="new-password"
-                    placeholder="相同地址留空保留；更换地址需重新填写" /></label
-                ><button class="button primary full" @click="saveAIConfig">
-                  保存提供商配置
-                </button></template
+                  诊断报告在本机生成，在「诊断导出」下载后自行分享；无需配置
+                  AI。
+                </p></template
               ><template v-else-if="settingsTab === 'credentials'"
                 ><div class="tip">
                   当前设备：{{ device?.label || "请先在画布选择设备" }}
@@ -1552,27 +1584,41 @@ window.addEventListener("beforeunload", (e) => {
         <pre>{{ JSON.stringify(sampleView, null, 2) }}</pre>
       </section>
     </div>
-    <div v-if="aiPreview" class="modal-backdrop" @click.self="aiPreview = null">
+    <div
+      v-if="reportPreview && diagnostic"
+      class="modal-backdrop"
+      @click.self="reportPreview = false"
+    >
       <section
         class="modal wide"
         role="dialog"
         aria-modal="true"
-        aria-label="外发证据预览"
+        aria-label="诊断报告预览"
       >
         <header>
-          <h2>外发证据预览</h2>
+          <h2>诊断报告预览</h2>
           <button
             class="icon-button"
-            aria-label="关闭外发预览"
-            @click="aiPreview = null"
+            aria-label="关闭报告预览"
+            @click="reportPreview = false"
           >
             <X :size="20" />
           </button>
         </header>
-        <p>
-          以下内容尚未发送。IP、SSID、BSSID、设备名称和备注可能识别你的网络，请检查后再确认外发。
+        <p>报告仅在本机生成。请检查网络标识和自由文本，再自行决定分享给谁。</p>
+        <div class="report-actions">
+          <button class="button primary" @click="downloadReport('md')">
+            下载问题日记 .md
+          </button>
+          <button class="button" @click="downloadReport('json')">
+            下载诊断 JSON
+          </button>
+          <button class="button" @click="copyGuide">复制排查说明</button>
+        </div>
+        <p v-if="diagnostic.markdown.length > 30000" class="muted">
+          预览仅显示前 30,000 字符；下载文件包含本次报告全部记录。
         </p>
-        <pre>{{ JSON.stringify(aiPreview, null, 2) }}</pre>
+        <pre>{{ diagnostic.markdown.slice(0, 30000) }}</pre>
       </section>
     </div>
     <div v-if="evidence" class="modal-backdrop" @click.self="evidence = null">
@@ -1614,23 +1660,13 @@ window.addEventListener("beforeunload", (e) => {
           >
             补采本机快照</button
           ><button
-            class="button"
-            @click="
-              download(
-                'incident-' + selectedIncident + '.json',
-                JSON.stringify(evidence, null, 2),
-              )
-            "
-          >
-            导出证据</button
-          ><button
             class="button primary"
             @click="
               evidence = null;
-              panel = 'ai';
+              panel = 'report';
             "
           >
-            交给 AI 分析
+            生成完整诊断报告
           </button>
         </div>
         <pre>{{ JSON.stringify(evidence, null, 2) }}</pre>

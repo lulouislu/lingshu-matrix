@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" role="img" aria-labelledby="title description">
   <title id="title">MacNet Lab — four-step evidence workflow</title>
-  <desc id="description">Model topology, configure probes, monitor and capture evidence, then analyze locally or with opt-in AI. A person chooses the next read-only check.</desc>
+  <desc id="description">Model topology, configure probes, monitor and capture evidence, then export a Markdown diary or JSON for manual AI handoff. A person chooses the next read-only check.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#6c81ad"/></marker>
   </defs>
@@ -12,10 +12,10 @@
       <path d="M783 174 V226 H339 V178" stroke-dasharray="5 5"/>
     </g>
     <g fill="#fff" stroke="#dde5f2"><rect x="18" y="46" width="198" height="128" rx="10"/><rect x="240" y="46" width="198" height="128" rx="10"/><rect x="462" y="46" width="198" height="128" rx="10"/><rect x="684" y="46" width="198" height="128" rx="10"/></g>
-    <g fill="#4266ec" font-size="11" font-weight="700"><text x="34" y="70">01 / MODEL</text><text x="256" y="70">02 / CONFIGURE</text><text x="478" y="70">03 / OBSERVE</text><text x="700" y="70">04 / ANALYZE</text></g>
-    <g fill="#243654" font-size="16" font-weight="600"><text x="34" y="98">描述网络拓扑</text><text x="256" y="98">配置检测与接口</text><text x="478" y="98">本机采集与故障快照</text><text x="700" y="98">本地摘要或 AI 分析</text></g>
-    <g fill="#556a8c" font-size="12"><text x="34" y="122">Model the topology</text><text x="256" y="122">Configure probes and interfaces</text><text x="478" y="122">Monitor and capture evidence</text><text x="700" y="122">Local summary or opt-in AI</text></g>
-    <g fill="#7b8ba5" font-size="12"><text x="34" y="151">设备 · 接口 · 服务关系</text><text x="256" y="151">目标 · 路径 · 失败阈值</text><text x="478" y="151">检测 · 快照 · 恢复记录</text><text x="700" y="151">证据预览 · 明确同意</text></g>
+    <g fill="#4266ec" font-size="11" font-weight="700"><text x="34" y="70">01 / MODEL</text><text x="256" y="70">02 / CONFIGURE</text><text x="478" y="70">03 / OBSERVE</text><text x="700" y="70">04 / EXPORT</text></g>
+    <g fill="#243654" font-size="16" font-weight="600"><text x="34" y="98">描述网络拓扑</text><text x="256" y="98">配置检测与接口</text><text x="478" y="98">本机采集与故障快照</text><text x="700" y="98">导出问题日记或 JSON</text></g>
+    <g fill="#556a8c" font-size="12"><text x="34" y="122">Model the topology</text><text x="256" y="122">Configure probes and interfaces</text><text x="478" y="122">Monitor and capture evidence</text><text x="700" y="122">Export Markdown or JSON</text></g>
+    <g fill="#7b8ba5" font-size="12"><text x="34" y="151">设备 · 接口 · 服务关系</text><text x="256" y="151">目标 · 路径 · 失败阈值</text><text x="478" y="151">检测 · 快照 · 恢复记录</text><text x="700" y="151">本地预览 · 自行交给 AI</text></g>
     <text x="450" y="207" text-anchor="middle" fill="#667b9b" font-size="12">人工选择下一项只读检查 · Human-selected read-only checks</text>
   </g>
 </svg>

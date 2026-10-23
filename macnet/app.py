@@ -16,10 +16,11 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import __version__, ai
-from .models import AIConfig, AIRequest, Credential, Site, sanitized_export
+from . import __version__
+from .reports import build_report, markdown_report
+from .models import DiagnosticRequest, Credential, Site, sanitized_export
 from .store import Store, Conflict, uid
-from .security import Vault, redact
+from .security import Vault
 from .ssh import SSH
 from .probes import Probes
 from .engine import Engine
@@ -243,21 +244,6 @@ def create_app(directory=None):
         ssh.known_hosts.chmod(0o600)
         return {"ok": True}
 
-    @app.get("/api/ai/config")
-    def ai_config_read():
-        value = store.setting("ai_config", {"endpoint": "https://api.deepseek.com/v1", "model": "deepseek-chat"})
-        return {key: value[key] for key in ("endpoint", "model")}
-
-    @app.post("/api/ai/config")
-    def ai_config_write(body: AIConfig):
-        old = store.setting("ai_config", {})
-        ref = old.get("credential_ref", "") if old.get("endpoint") == body.endpoint else ""
-        if body.api_token:
-            ref = "ai-" + uid()
-            vault.put(Credential(id=ref, api_token=body.api_token))
-        store.set_setting("ai_config", {**body.model_dump(exclude={"api_token"}), "credential_ref": ref})
-        return {"ok": True}
-
     @app.post("/api/retention")
     async def retention(body: Retention):
         async with engine.lock:
@@ -265,22 +251,17 @@ def create_app(directory=None):
             store.cleanup(body.days)
         return {"ok": True}
 
-    @app.post("/api/ai/preview")
-    def ai_preview(body: AIRequest):
-        site = engine.active()
-        if not site:
-            raise ValueError("先选择站点")
-        return ai.context_for(store, engine, site, body)
+    @app.post("/api/sites/{id}/diagnostics")
+    async def diagnostics(id: str, body: DiagnosticRequest):
+        async with engine.lock:
+            get_site(id)
+            report = build_report(store, engine, id, body)
+        return {"report": report, "markdown": markdown_report(report)}
 
-    @app.post("/api/ai/answer")
-    async def ai_answer(body: AIRequest):
-        site = engine.active()
-        if not site:
-            raise ValueError("先选择站点")
-        try:
-            return await ai.answer(store, engine, site, body, vault)
-        except Exception as exc:
-            raise ValueError(str(redact(str(exc)))) from exc
+    # Explicit retirement: stale clients must never send evidence to a model.
+    @app.api_route("/api/ai/{operation}", methods=["GET", "POST"])
+    def retired_ai(operation: str):
+        raise HTTPException(410, "软件内 AI 接入已移除。请在「诊断导出」生成问题日记或 JSON，自行交给 AI。")
 
     @app.websocket("/api/live")
     async def live(websocket: WebSocket):
