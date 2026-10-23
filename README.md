@@ -1,22 +1,75 @@
-# MacNet Lab
+<div align="center">
 
-**让 AI 看懂你的网络，再沿着证据找到问题。**
+# 🌐 MacNet Lab
 
-面向 macOS 的本地网络运维工作台：用拓扑描述设备、接口与服务，把当前接入位置、检测记录和故障现场一起交给 AI 分析。
+**Visual Network Topology, Interface-Aware Monitoring & Evidence-Driven AI Troubleshooting**<br />
+**可视化网络拓扑、接口感知监控与 AI 证据排障工作台**
 
-MacBook 接一根机房网线、连任意一个 AP，或常开 Mac 同时使用有线与 Wi-Fi，都可以是观测入口。**双网不是使用前提。**
+[![Checks](https://github.com/lulouislu/macnet-lab/actions/workflows/checks.yml/badge.svg)](https://github.com/lulouislu/macnet-lab/actions/workflows/checks.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Target: macOS](https://img.shields.io/badge/Target-macOS-brightgreen.svg)](#quick-start-en)
+[![Stage: Development Preview](https://img.shields.io/badge/Stage-Development%20Preview-orange.svg)](#roadmap-en)
+[![AI: Opt-in](https://img.shields.io/badge/AI-Opt--in-purple.svg)](#ai-en)
 
-> **v0.1 开发预览**：已有可运行程序、自动化测试和安装脚本。通用功能已在 Windows 开发环境验证；macOS 网卡绑定、CoreWLAN、打印、钥匙串及登录常驻仍需真实 Mac 验收。当前没有签名的 `.app` / `.dmg` 安装包。
+[简体中文](#zh-cn) · [English](#english) · [使用手册](docs/USAGE_ZH.md) · [Mac 验收清单](docs/MAC_ACCEPTANCE.md)
 
-![MacNet Lab 开发环境中的家庭示例拓扑](docs/workbench.png)
+</div>
 
-_界面为开发预览；示例拓扑没有配置真实地址或启用自动检测。_
+---
 
-## 先把一项检测跑起来
+![MacNet Lab workbench — example topology](docs/workbench.png)
 
-### 在 Mac 上从源码安装
+_开发预览中的示例拓扑，未配置真实网络地址或启用自动检测。 / Development preview with an example topology; no real network targets or automatic probes are configured._
 
-准备 Python 3.11+、Node.js 22.12+（建议 24）和 Git，然后在终端执行：
+<a id="zh-cn"></a>
+
+## 🇨🇳 简体中文
+
+### 📖 让 AI 先看懂网络，再定位问题
+
+网络出问题时，单独一条 Ping 结果往往解释不了：MacBook 正接在哪个 AP 下？有线与 Wi-Fi 的出口是否不同？手机打印失败，是网络、Mac 的共享服务，还是 USB 打印机的问题？Minecraft 连不上，又是主机资源还是服务响应出了问题？
+
+**MacNet Lab** 用“拼积木”的方式描述网络，把**用户声明的拓扑、当前接入位置、检测路径和故障证据**放在一起，再交给本地摘要或用户选择的 AI 分析。
+
+- **现场维护**：MacBook 接入机房网线或任意一个 AP，从当前位置开展获授权的检测。
+- **常驻监控**：常开 Mac 调度已启用的检测，记录故障与恢复。
+
+**单网即可使用，双网不是前提。** 支持描述单 AC 多 AP，也能表达同一台 Mac 的有线、Wi-Fi、USB 接口，以及打印共享和 Minecraft 服务。
+
+> **当前版本：v0.1 开发预览。** 已有可运行程序和跨平台自动化检查。产品目标是 macOS；Linux / Windows 用于通用代码测试和开发预览，不代表它们是已验收的产品平台。真实 Mac 的网卡隔离、Wi-Fi、打印、钥匙串和常驻运行仍待验收。
+
+### ✨ 核心特性
+
+| 模块              | 当前能力                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------------------- |
+| 🧩 拓扑工作台     | 拖拽设备、接口级连线、多站点、JSON 导入导出、PNG 与浏览器打印；区分有线、Wi-Fi、USB、管理关系和服务依赖 |
+| 📡 接口感知检测   | ICMP、TCP、DNS、HTTP(S)、显式代理与 Mihomo API；已实现 macOS IPv4 接口绑定，无法绑定时不偷偷回退        |
+| 🗺️ 当前接入位置   | 接口、地址与可读取的网关、DNS、Wi-Fi 信息；结合已配置 BSSID 清单关联 AP，不凭 SSID 猜完整网络           |
+| 📦 故障黑匣子     | 连续失败阈值、重复事件合并、异常快照、恢复记录、接入变化与采集中断、证据导出                            |
+| 🖨️ Mac 托管服务   | CUPS / USB 只读采集、Minecraft Java / Bedrock 状态、主机及指定 PID 的资源信息                           |
+| 🔐 凭据与只读 SSH | 系统钥匙串、显式核实的主机公钥、固定命令组；不开放任意 Shell，不自动安装远程探针                        |
+| 🧠 AI 证据排障    | 本地规则摘要、实验性 Codex 适配、OpenAI 兼容 API；提供外发预览、明确同意与错误反馈，不静默切换服务商    |
+
+**状态有边界：** 未知、暂停和监控中断不算正常；本机可达不等于其他终端或公网玩家可达。打印状态采集不等于手机发现或实际打印成功；Minecraft 状态不包含未采集的 TPS / MSPT。
+
+### 🏗️ 四步工作流 / Architecture & Workflow
+
+```mermaid
+flowchart LR
+    A["1. 描述网络拓扑<br/>Model the topology"] --> B["2. 配置检测与接口<br/>Configure probes and interfaces"]
+    B --> C["3. 本机采集与故障快照<br/>Monitor and capture evidence"]
+    C --> D["4. 本地摘要或 AI 分析<br/>Local summary or opt-in AI"]
+    D -. "人工选择下一项只读检查<br/>Human-selected read-only checks" .-> B
+```
+
+1. **拓扑建模**：拖入设备，连接具体接口，为服务补充名称和备注；拓扑是声明，不冒充自动发现结果。
+2. **配置检测**：明确目标、端口、源接口、间隔与失败阈值。先手动运行，再按需启用自动监控。
+3. **采集与留证**：由运行工作台的 Mac 发起检测；故障达到阈值后保存快照，SSH 补采需另行配置授权。
+4. **证据排障**：查看本地摘要，或确认将脱敏证据发送给所选 AI；由用户决定下一步检查。
+
+### 🛠️ 快速开始
+
+准备 **macOS、Python 3.11+、Node.js 22.12+（建议 24）和 Git**：
 
 ```bash
 git clone https://github.com/lulouislu/macnet-lab.git
@@ -25,148 +78,131 @@ bash scripts/install-macos.sh
 bash scripts/start-macos.command
 ```
 
-安装使用项目内 `.venv`，不需要 `sudo`。首次构建需要下载 npm / PyPI 依赖；之后日常运行不需要 Node.js。
+打开 **[http://127.0.0.1:8765](http://127.0.0.1:8765)**。首次启动的示例不启用网络检测；安装使用项目内 `.venv`，不需要 `sudo`，也不会自动添加登录项。首次构建需要联网下载依赖，日常运行不需要 Node.js。
 
-打开 [本地工作台](http://127.0.0.1:8765)。首次启动的示例**不会探测你的网络**。
+选择设备 → 添加检测 → **运行一次** → 查看结果。需要持续采集时，再启用检测、保存并点击 **开始监控**。Mac 休眠、退出登录或程序停止时，采集也会中断。
 
-1. 选择示例或创建空白站点，点击「编辑拓扑」，添加设备并从接口圆点拉线。
-2. 点击设备填写管理地址、服务、接口信息；当前 Mac 勾选「这是运行工作台的本机 Mac」。
-3. 添加一项检测，先点「运行一次」，在「结果详情」查看指标与实际配置的检测路径。
-4. 要持续采集时，再勾选检测的「自动检测」、保存，并点击「开始监控」。
-5. 连续失败达到阈值后，在「故障黑匣子」查看现场证据，或交给「AI 排障」。
+登录常驻、开发预览、备份、接口 DNS 配置与详细限制见 **[使用手册](docs/USAGE_ZH.md)**。当前不提供 Docker Compose 部署或签名的 `.app` / `.dmg` 安装包。
 
-停止前台程序：在启动终端按 `Ctrl+C`。关闭浏览器不等于停止采集。
+### 🛡️ 安全与 AI 接入
 
-### 可选：登录后常驻
+- **本地优先**：仅监听 `127.0.0.1:8765`；拓扑、历史与快照保存在本地 SQLite，凭据进入系统钥匙串。
+- **默认不外发**：本地规则摘要不调用模型。云端分析需预览资料并明确同意；API 调用可能产生费用。
+- **Codex 独立配置**：安装官方 CLI 后，使用 `.venv/bin/macnet-lab --codex-login` 登录本工具的独立配置。适配器关闭执行类能力并检查外部 MCP 清单；真实账号问答仍待验收。
+- **提供商可选**：支持 OpenAI 兼容 HTTPS API 和本机 HTTP 模型服务；更换地址不会沿用另一地址的密钥。
+- **分享前检查**：规则脱敏不替代人工确认，IP、SSID、BSSID、设备名称和备注仍可能识别你的网络。
+- **当前只读**：不修改 LAN、DHCP、防火墙、路由、打印配置、Minecraft 世界或玩家权限。
 
-先停止手动启动的实例，再执行：
+### 🗺️ 路线图
 
-```bash
-.venv/bin/python scripts/login-item.py install
-.venv/bin/python scripts/login-item.py status
-# 停止常驻并取消登录启动，保留数据库和钥匙串：
-.venv/bin/python scripts/login-item.py remove
-```
+- [x] 拖拽拓扑、接口建模、多站点与配置存取。
+- [x] 本机检测调度、检测记录、故障快照与恢复状态。
+- [x] 打印 / USB、Minecraft、KWRT / Nikki 的限定只读采集适配。
+- [x] 本地摘要、AI 外发预览与提供商适配。
+- [ ] 真实 Mac、单 AC 多 AP、双接口不串路及休眠恢复验收。
+- [ ] 真实 Codex / 自定义模型问答验收。
+- [ ] 历史趋势图、IPv6 主动探测、控制器深度指标与受限 Minecraft 日志。
+- [ ] 参数化受控修复、设备端 watchdog、回滚验证与审计。
+- [ ] 签名 / 公证的 macOS 应用包与芯片架构兼容性确认。
 
-这是当前用户的 LaunchAgent，不是 root 服务。只有用户登录且 Mac 醒着时才能采集；迁移项目目录后需要重新安装登录项。此入口已实现，等待真实 macOS 验收。
+自动下发远程探针、自动修复与回滚尚未实现；不承诺任何修复“绝不断联”。这些能力需要独立设计和故障注入演练，再逐项启用。
 
-## 用拓扑说明环境，不让 AI 猜接线
+---
 
-内置两类示例，也支持空白站点：
+<a id="english"></a>
 
-```text
-单 AC / 多 AP：
-网关 ── 交换机 ── AC、AP 1、AP 2
-AC  ··· 管理关系 ··· AP 1 / AP 2
-AP 1 ── Wi-Fi ── 维护 MacBook
+## 🇬🇧 English
 
-家庭实验室（两处 Mac 是同一台）：
-光猫 ── 路由器 1 ── Wi-Fi ── Mac
-     └─ KWRT / Nikki ── 有线 ── Mac ── USB ── 打印机
-                                  └─ 运行：打印共享、Minecraft
-```
+### 📖 Understand the network before diagnosing it
 
-- **有线、Wi-Fi、USB** 连到具体接口；**管理关系、服务依赖** 单独表达。
-- AP 可以配置多个 BSSID。读取到当前 BSSID 后，只有唯一匹配才关联 AP；不凭 SSID 猜设备。
-- 服务名称、设备备注用于补充 VLAN、DHCP / DNS 角色、部署位置等上下文；这些角色目前还不是独立的结构化配置项。
-- 声明的拓扑与实际观测分开。看不到管理网，不会自动改 VLAN、路由或访问控制。
+A successful ping rarely tells the whole story. Which AP is the MacBook connected to? Are Ethernet and Wi-Fi using different paths? Is a printing failure caused by the network, the Mac's shared print service, or the USB printer? Is a Minecraft connection issue related to host resources or the service itself?
 
-## 当前可以做什么
+**MacNet Lab** combines a block-building topology editor with **declared network relationships, the current observation point, path-specific checks and incident evidence**. Use a local summary or explicitly selected AI provider to interpret that evidence.
 
-| 能力         | 当前实现与边界                                                                                        |
-| ------------ | ----------------------------------------------------------------------------------------------------- |
-| 拓扑编辑     | 拖拽设备、接口连线、多站点、乐观锁保存、JSON 导入导出、PNG 与浏览器打印                               |
-| 当前接入     | 接口、IPv4 / IPv6 地址、可用速率与计数器；macOS 适配接口作用域网关、DNS、Wi-Fi SSID / BSSID / RSSI 等 |
-| 网络检测     | ICMP、TCP、DNS、HTTP(S)、显式 HTTP / SOCKS 代理、Mihomo 控制 API                                      |
-| 路径隔离     | macOS IPv4 socket 绑定接口；HTTP 绑定 socket 并显式解析；绑定失败不回退。默认路径会明确标为 `system`  |
-| 故障黑匣子   | 连续失败阈值、重复事件合并、异常快照、连续两次成功确认恢复、手动补采、证据导出                        |
-| 中断识别     | 接口 / 地址 / 网关 / BSSID 变化、程序重启及超过 60 秒的调度缺口会中断旧事件，不伪装成恢复             |
-| Mac 打印     | 读取 CUPS、队列数量与 USB 枚举；不发测试打印任务，不自动把普通打印共享变成 AirPrint                   |
-| Minecraft    | Java / Bedrock 只读状态协议，版本、人数、请求耗时；本机资源可附加指定 PID 的内存与累计 CPU 时间       |
-| KWRT / Nikki | 已校验主机公钥的 SSH 固定只读命令组；Mihomo API 状态与显式代理上网分别检测                            |
-| AI 分析      | 本地规则摘要、Codex App Server 实验适配、OpenAI 兼容 API；外发预览与明确同意，无静默切换              |
+- **Field maintenance**: connect a MacBook by Ethernet or through an AP and run authorized checks from that location.
+- **Resident monitoring**: keep a Mac online to schedule enabled checks and retain incident and recovery records.
 
-### 怎样分别检测有线与 Wi-Fi
+**One network connection is enough.** Model a single-AC/multi-AP site or multiple interfaces on the same Mac, including Ethernet, Wi-Fi, USB, printer sharing and a Minecraft server.
 
-为同一目标创建两项检测，各自选择真实的采集源接口。绑定接口访问域名时，填写该路径的 **IPv4 DNS 服务器**，防止借另一接口解析。
+> **Status: v0.1 development preview.** Runnable code and cross-platform automated checks are available. The product targets macOS; Linux and Windows are used for generic testing and development previews. Physical Mac acceptance for interface isolation, Wi-Fi, printing, Keychain and login startup is still pending.
 
-现场维护中不常用的第二接口，取消「此接口必须在线」：它断开时记为暂停，而不是故障。接口名称从系统读取，不写死 `en0` / `en1`。
+### ✨ Key features
 
-当前主动检测以 **IPv4** 为主；IPv6 主动探测未实现。SSH 只读采集使用系统管理路径，配置接口绑定时会显示未知而不执行。VPN / 透明代理的端到端实际出口、其他 AP 的覆盖和其他玩家的公网可达性，需要对应位置的额外证据。
+| Module                    | Available implementation                                                                                                                                                            |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🧩 Topology workbench     | Drag-and-drop devices, interface-level edges, multiple sites, JSON import/export, PNG export and browser printing; separate physical links from management and service dependencies |
+| 📡 Interface-aware checks | ICMP, TCP, DNS, HTTP(S), explicit proxies and the Mihomo API; macOS IPv4 interface binding without silently falling back to another path                                            |
+| 🗺️ Observation context    | Interfaces, addresses and available gateway, DNS and Wi-Fi information; match BSSIDs against a configured AP inventory rather than guessing from an SSID                            |
+| 📦 Incident evidence      | Consecutive-failure thresholds, deduplicated incidents, bounded snapshots, recovery records, access changes, collection gaps and evidence export                                    |
+| 🖨️ Mac-hosted services    | Read-only CUPS/USB collection, Minecraft Java/Bedrock status, host resources and optional per-PID metrics                                                                           |
+| 🔐 Credentials and SSH    | OS Keychain, explicitly verified host keys and fixed read-only command presets; no arbitrary shell or automatic remote-agent installation                                           |
+| 🧠 Evidence-driven AI     | Local rule summaries, an experimental Codex adapter and OpenAI-compatible APIs; outbound evidence preview, explicit consent and no silent provider fallback                         |
 
-### 打印和 Minecraft 的判断范围
+Unknown, paused and interrupted observations are not healthy results. Reachability from this Mac does not establish reachability from another client or the public Internet. Print-service observations do not prove mobile discovery or a completed print job; Minecraft status does not include uncollected TPS/MSPT metrics.
 
-USB 打印机无需填写 IP。CUPS 可查询、USB 已枚举、手机可发现、实际打印成功是不同事实；本工具目前覆盖前两类本机只读信息。
+### 🏗️ Four-step workflow
 
-Minecraft 协议响应与进程资源分开采集。服务进程 PID 需要手动维护；PID 重用、重启后请核对进程名和创建时间。当前不读世界存档、聊天或完整服务器日志，也不报告未采集的 TPS / MSPT。
+The diagram above follows the actual implementation:
 
-## 连接 AI
+1. **Model** devices, interfaces, physical links, management relationships and services. Keep declared topology separate from observations.
+2. **Configure** targets, ports, source interfaces, intervals and failure thresholds. Run a manual check before enabling automatic monitoring.
+3. **Observe** from the Mac running the workbench. Capture incident snapshots; optional SSH evidence collection requires explicit credential and host-key setup.
+4. **Analyze** evidence locally or send it to a selected AI provider after consent. The user decides the next read-only check.
 
-默认使用**本地规则摘要**，不调用模型、不外发资料。
+<a id="quick-start-en"></a>
 
-### Codex（实验适配）
+### 🛠️ Quick start
 
-先安装[官方 Codex CLI](https://developers.openai.com/codex/cli)，通过本工具入口完成一次独立登录：
+Requirements: **macOS, Python 3.11+, Node.js 22.12+ (24 suggested), and Git**.
 
 ```bash
-.venv/bin/macnet-lab --codex-login
+git clone https://github.com/lulouislu/macnet-lab.git
+cd macnet-lab
+bash scripts/install-macos.sh
+bash scripts/start-macos.command
 ```
 
-登录由官方 CLI 处理。MacNet 使用数据目录里的独立 `codex-home`，不复制桌面端凭据、插件或 MCP 配置。适配器使用临时工作目录、受限只读沙箱，关闭 Shell、Apps、Hooks、多代理与搜索；模型调用前检查 MCP 清单，发现外部服务器即停止。协议测试已通过，真实账号模型问答尚未验收。
+Open **[http://127.0.0.1:8765](http://127.0.0.1:8765)**. Example sites do not enable probes automatically. Installation uses a project-local `.venv`, requires no `sudo`, and does not register a login item. Building downloads dependencies; Node.js is not needed for daily operation afterward.
 
-### OpenAI 兼容 API
+Select a device, add a check, and choose **Run once**. To collect continuously, enable the desired checks, save the site, then start monitoring. Collection stops when the Mac sleeps, the user logs out or the application exits.
 
-在「连接设置」填写 API 基础地址、模型名称及密钥。支持 HTTPS 提供商，也允许本机 HTTP 模型服务。密钥进入系统钥匙串；系统钥匙串不可用时直接报错。本机无认证模型服务可以留空；更换 API 基础地址时不会沿用其他地址的密钥。
+The **[Chinese usage guide](docs/USAGE_ZH.md)** covers optional login startup, development previews, backups and interface-specific DNS. There is currently no Docker Compose deployment or signed `.app`/`.dmg` installer.
 
-在「AI 排障」选择提供商，先「预览将发送的证据」，再确认发送。云模型可能消耗你的账号额度或 API 费用。服务失败会显示错误，不会自动切换 DeepSeek 或其他提供商。
+<a id="ai-en"></a>
 
-**外发数据仍可能包含 IP、SSID、BSSID、设备名称和备注。** 凭据字段、私钥、常见令牌、订阅 URL、UUID 与序列号做规则脱敏，不能代替人工检查；不要在自由文本中填写密码。
+### 🛡️ Security and AI integration
 
-## 数据、安全与恢复
+- **Local-first**: the service binds only to `127.0.0.1:8765`. SQLite stores local configuration and evidence; OS Keychain stores credentials.
+- **Explicit outbound consent**: the default rule summary uses no model. Preview evidence before choosing a cloud provider; usage may incur account or API charges.
+- **Isolated Codex profile**: after installing the official CLI, run `.venv/bin/macnet-lab --codex-login`. The adapter disables execution capabilities and checks for external MCP servers before starting a model turn. Real-account inference remains unverified.
+- **Provider choice**: use an OpenAI-compatible HTTPS endpoint or a local HTTP model service. Changing endpoints does not reuse another endpoint's key.
+- **Review before sharing**: rule-based redaction does not remove every identifying detail. IPs, SSIDs, BSSIDs, device names and notes may still identify the network.
+- **Read-only operations**: no LAN, DHCP, firewall, routing, printing, Minecraft-world or player-permission changes.
 
-- 只监听 `127.0.0.1:8765`，校验 Host / Origin，并使用本机会话 Cookie 和写请求确认头；不提供局域网或公网管理模式。
-- 默认数据目录：`~/Library/Application Support/MacNetLab`。可用 `--data-dir /path/to/data` 指定。配置、历史和快照在 SQLite，设备凭据在系统钥匙串，已核实公钥在独立 `known_hosts`。
-- SSH 不自动信任新主机，不使用 SSH agent 或任意 Shell 输入。先经可信渠道核实公钥，再在设置粘贴完整 OpenSSH 记录。保存会替换本工具原有记录。
-- 默认保留 7 天，可设置 1–30 天；另有样本 / 证据行数上限、单条输出上限与数据盘低空间暂停。SQLite 主库设置约 512 MiB 页面上限；WAL 与独立 Codex 目录不计入这个上限。
-- JSON 导出移除凭据引用并禁用检测，导入创建新站点。**IP、BSSID 和备注保留**；截图和证据导出也需要人工检查后再分享。
-- 完整备份：停止采集程序，备份整个数据目录；钥匙串单独保留。拓扑 JSON 只用于交换配置，不是历史记录备份。
+Active network probes currently focus on IPv4. Interface-bound hostname checks require an explicit IPv4 DNS server. SSH evidence collection uses the system management path; selecting interface binding for SSH returns an unsupported/unknown result rather than silently using another path. See the usage guide for data-retention and output-size limits.
 
-首版只读，不修改 LAN、DHCP、防火墙、系统路由、打印配置、Minecraft 存档或玩家权限。**受控修复、设备端 watchdog 和回滚审计仍未实现**，不会把 `sleep 45` 当作可靠恢复承诺。
+<a id="roadmap-en"></a>
 
-## 开发与验证
+### 🗺️ Roadmap
 
-Vue 3 + TypeScript + Vue Flow；FastAPI + asyncio；SQLite；AsyncSSH；CoreWLAN / psutil / keyring。
+- [x] Modular topology editor, interface model, multiple sites and configuration persistence.
+- [x] Local probe scheduling, result history, incident snapshots and recovery states.
+- [x] Bounded read-only adapters for printing/USB, Minecraft and KWRT/Nikki.
+- [x] Local summaries, AI evidence preview and provider adapters.
+- [ ] Physical Mac acceptance: AC/AP sites, independent network paths, roaming and sleep/resume.
+- [ ] Real Codex and custom-provider inference acceptance.
+- [ ] History charts, active IPv6 probes, controller-specific metrics and limited Minecraft logs.
+- [ ] Parameterized remediation, device-side watchdogs, rollback verification and audit trails.
+- [ ] Signed/notarized macOS packages and architecture compatibility validation.
 
-macOS / Linux 开发测试：
+Automatic remote-probe deployment and self-healing/rollback are not implemented. Remediation requires action-specific design and failure-injection tests before it can be enabled; uninterrupted connectivity is not guaranteed.
 
-```bash
-python3 -m venv .venv
-npm --prefix frontend ci
-npm --prefix frontend test
-npm --prefix frontend run build
-.venv/bin/python -m pip install '.[dev]'
-.venv/bin/python -m pytest -q
-```
+---
 
-Windows 仅用于通用开发预览，后两步使用 `.venv\Scripts\python.exe`；启动时明确加 `--preview`：
+## 👨‍💻 Author & Contribution
 
-```powershell
-.venv\Scripts\python.exe -m macnet.cli --preview --data-dir .\data
-```
+**[lulouislu](https://github.com/lulouislu)** · [Issues](https://github.com/lulouislu/macnet-lab/issues) · [CI checks](https://github.com/lulouislu/macnet-lab/actions)
 
-生产前端输出到 `macnet/static`，不提交生成文件。发布 Python 包前必须先构建前端。`python -m build` 打包的 wheel 包含已构建界面，源码仓库直接 `pip install .` 而未构建前端时会提示 503。
+欢迎提交脱敏拓扑与复现步骤。 / Contributions with sanitized topologies and reproducible issue reports are welcome.
 
-提交会触发 macOS / Linux / Windows CI；CI 结果看 [Actions](https://github.com/lulouislu/macnet-lab/actions)，不把配置了 CI 当作已通过真实设备验收。
-
-## 接下来完成什么
-
-- [x] 拓扑 → 只读检测 → 故障快照 → 本地证据分析闭环。
-- [x] 打印、USB、Minecraft、KWRT / Nikki 的限定采集适配与安装入口。
-- [x] AI 外发预览、提供商选择、凭据隔离和协议测试。
-- [ ] [真实 Mac 验收](docs/MAC_ACCEPTANCE.md)：单有线、单 Wi-Fi、单 AC 多 AP、双接口不串路、休眠恢复、打印与钥匙串。
-- [ ] 真实 Codex / 自定义模型问答验收；不使用真实网络日志做自动付费测试。
-- [ ] 图表化历史、IPv6 主动探测、设备控制器深度指标、受限 Minecraft 日志。
-- [ ] 参数化受控修复：逐动作确认、设备端恢复、验证与审计，通过故障注入演练后再启用。
-- [ ] 签名 / 公证的 macOS 应用包与 Intel / Apple Silicon 兼容性确认。
-
-欢迎用脱敏拓扑与复现步骤提交 Issue。代码采用 [MIT License](LICENSE)；依赖保留各自许可证。
+Released under the **[MIT License](LICENSE)**. Dependencies retain their respective licenses.
