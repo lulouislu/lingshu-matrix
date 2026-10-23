@@ -2,15 +2,15 @@
 
 **让 AI 看懂你的网络，再沿着证据找到问题。**
 
-面向 macOS 的本地网络运维工作台：用拓扑描述设备、接口与服务，把当前接入位置、检测记录和故障现场一起交给 AI 分析。
+面向 Windows / macOS 的本地网络运维工作台：用拓扑描述设备、接口与服务，把当前接入位置、检测记录和故障现场一起交给 AI 分析。
 
-MacBook 接一根机房网线、连任意一个 AP，或常开 Mac 同时使用有线与 Wi-Fi，都可以是观测入口。**双网不是使用前提。**
+Windows 笔记本或 MacBook 接一根机房网线、连任意一个 AP，或常开 Mac 同时使用有线与 Wi-Fi，都可以是观测入口。**双网不是使用前提。**
 
-> **v0.1 开发预览**：已有可运行程序、自动化测试和安装脚本。通用功能已在 Windows 开发环境验证；macOS 网卡绑定、CoreWLAN、打印、钥匙串及登录常驻仍需真实 Mac 验收。当前没有签名的 `.app` / `.dmg` 安装包。
+> **v0.1 开发预览**：已有可运行程序、自动化测试和安装脚本。Windows 已有原生适配与正常启动入口；平台实测情况见[能力与验收](PLATFORM_SUPPORT.md)。真实多网卡隔离、Wi-Fi 漫游、外设及 macOS 验收仍待完成。当前没有签名的 `.app` / `.dmg` 安装包。
 
-![MacNet Lab 开发环境中的家庭示例拓扑](workbench.png)
+![MacNet Lab Windows 原生运行中的合成拓扑](windows-workbench.png)
 
-_界面为开发预览；示例拓扑没有配置真实地址或启用自动检测。_
+_图为 Windows 原生运行；没有配置真实网络目标，自动监控暂停。_
 
 ## 先把一项检测跑起来
 
@@ -25,19 +25,32 @@ bash scripts/install-macos.sh
 bash scripts/start-macos.command
 ```
 
+### 在 Windows 上从源码安装
+
+确保终端中的 `python` 是 3.11+，并已安装 Node.js 22.12+ 和 Git：
+
+```powershell
+git clone https://github.com/lulouislu/macnet-lab.git
+cd macnet-lab
+python scripts/install.py
+.\.venv\Scripts\macnet-lab.exe
+```
+
+也可用 `py -3 scripts/install.py`。安装后双击 `scripts/start-windows.cmd` 可启动。不需要 `--preview`、管理员权限或修改执行策略。
+
 安装使用项目内 `.venv`，不需要 `sudo`。首次构建需要下载 npm / PyPI 依赖；之后日常运行不需要 Node.js。
 
 打开 [本地工作台](http://127.0.0.1:8765)。首次启动的示例**不会探测你的网络**。
 
 1. 选择示例或创建空白站点，点击「编辑拓扑」，添加设备并从接口圆点拉线。
-2. 点击设备填写管理地址、服务、接口信息；当前 Mac 勾选「这是运行工作台的本机 Mac」。
+2. 点击设备填写管理地址、服务、接口信息；当前电脑勾选「这是运行工作台的本机电脑」。
 3. 添加一项检测，先点「运行一次」，在「结果详情」查看指标与实际配置的检测路径。
 4. 要持续采集时，再勾选检测的「自动检测」、保存，并点击「开始监控」。
 5. 连续失败达到阈值后，在「故障黑匣子」查看现场证据，再去「诊断导出」生成报告，自行交给 AI。
 
 停止前台程序：在启动终端按 `Ctrl+C`。关闭浏览器不等于停止采集。
 
-### 可选：登录后常驻
+### 可选：macOS 登录后常驻
 
 先停止手动启动的实例，再执行：
 
@@ -58,7 +71,7 @@ bash scripts/start-macos.command
 单 AC / 多 AP：
 网关 ── 交换机 ── AC、AP 1、AP 2
 AC  ··· 管理关系 ··· AP 1 / AP 2
-AP 1 ── Wi-Fi ── 维护 MacBook
+AP 1 ── Wi-Fi ── Windows 笔记本 / MacBook
 
 家庭实验室（两处 Mac 是同一台）：
 光猫 ── 路由器 1 ── Wi-Fi ── Mac
@@ -73,18 +86,18 @@ AP 1 ── Wi-Fi ── 维护 MacBook
 
 ## 当前可以做什么
 
-| 能力         | 当前实现与边界                                                                                        |
-| ------------ | ----------------------------------------------------------------------------------------------------- |
-| 拓扑编辑     | 拖拽设备、接口连线、多站点、乐观锁保存、JSON 导入导出、PNG 与浏览器打印                               |
-| 当前接入     | 接口、IPv4 / IPv6 地址、可用速率与计数器；macOS 适配接口作用域网关、DNS、Wi-Fi SSID / BSSID / RSSI 等 |
-| 网络检测     | ICMP、TCP、DNS、HTTP(S)、显式 HTTP / SOCKS 代理、Mihomo 控制 API                                      |
-| 路径隔离     | macOS IPv4 socket 绑定接口；HTTP 绑定 socket 并显式解析；绑定失败不回退。默认路径会明确标为 `system`  |
-| 故障黑匣子   | 连续失败阈值、重复事件合并、异常快照、连续两次成功确认恢复、手动补采、证据导出                        |
-| 中断识别     | 接口 / 地址 / 网关 / BSSID 变化、程序重启及超过 60 秒的调度缺口会中断旧事件，不伪装成恢复             |
-| Mac 打印     | 读取 CUPS、队列数量与 USB 枚举；不发测试打印任务，不自动把普通打印共享变成 AirPrint                   |
-| Minecraft    | Java / Bedrock 只读状态协议，版本、人数、请求耗时；本机资源可附加指定 PID 的内存与累计 CPU 时间       |
-| KWRT / Nikki | 已校验主机公钥的 SSH 固定只读命令组；Mihomo API 状态与显式代理上网分别检测                            |
-| 诊断导出     | 完整保留范围的 Markdown 日记与 JSON、用户问题描述、UTC 时间线及 AI 排查说明；本机生成，不接入 AI      |
+| 能力         | 当前实现与边界                                                                                                                      |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 拓扑编辑     | 拖拽设备、接口连线、多站点、乐观锁保存、JSON 导入导出、PNG 与浏览器打印                                                             |
+| 当前接入     | 接口、IPv4 / IPv6 地址、可用速率与计数器；macOS 与 Windows 分别读取接口级网关、DNS 及可用的 Wi-Fi 信息                              |
+| 网络检测     | ICMP、TCP、DNS、HTTP(S)、显式 HTTP / SOCKS 代理、Mihomo 控制 API                                                                    |
+| 路径隔离     | Windows / macOS IPv4 socket 绑定接口；HTTP 绑定 socket 并显式解析；绑定失败不回退。默认路径会明确标为 `system`                      |
+| 故障黑匣子   | 连续失败阈值、重复事件合并、异常快照、连续两次成功确认恢复、手动补采、证据导出                                                      |
+| 中断识别     | 接口 / 地址 / 网关 / BSSID 变化、程序重启及超过 60 秒的调度缺口会中断旧事件，不伪装成恢复                                           |
+| 本机打印     | macOS 读取 CUPS / IOUSB；Windows 读取 Spooler、打印机、队列数量与 USB 打印设备；不发测试打印任务，不自动把普通打印共享变成 AirPrint |
+| Minecraft    | Java / Bedrock 只读状态协议，版本、人数、请求耗时；本机资源可附加指定 PID 的内存与累计 CPU 时间                                     |
+| KWRT / Nikki | 已校验主机公钥的 SSH 固定只读命令组；Mihomo API 状态与显式代理上网分别检测                                                          |
+| 诊断导出     | 完整保留范围的 Markdown 日记与 JSON、用户问题描述、UTC 时间线及 AI 排查说明；本机生成，不接入 AI                                    |
 
 ### 怎样分别检测有线与 Wi-Fi
 
@@ -92,11 +105,15 @@ AP 1 ── Wi-Fi ── 维护 MacBook
 
 现场维护中不常用的第二接口，取消「此接口必须在线」：它断开时记为暂停，而不是故障。接口名称从系统读取，不写死 `en0` / `en1`。
 
+Windows 绑定接口的 ICMP 暂未支持，显示未知且不发送默认路径 Ping；改用绑定的 TCP / DNS / HTTP。macOS 保留 `ping -b`。
+
 当前主动检测以 **IPv4** 为主；IPv6 主动探测未实现。SSH 只读采集使用系统管理路径，配置接口绑定时会显示未知而不执行。VPN / 透明代理的端到端实际出口、其他 AP 的覆盖和其他玩家的公网可达性，需要对应位置的额外证据。
 
 ### 打印和 Minecraft 的判断范围
 
-USB 打印机无需填写 IP。CUPS 可查询、USB 已枚举、手机可发现、实际打印成功是不同事实；本工具目前覆盖前两类本机只读信息。
+新建打印检测时，界面默认设为 15 秒超时，给 Windows PowerShell / CIM 冷启动留出时间。原有检测保留自己的超时设置；Windows 打印查询超时显示未知，不直接判定服务故障。
+
+USB 打印机无需填写 IP。打印服务（CUPS / Spooler）可查询、USB 已枚举、手机可发现、实际打印成功是不同事实；本工具目前覆盖前两类本机只读信息。
 
 Minecraft 协议响应与进程资源分开采集。服务进程 PID 需要手动维护；PID 重用、重启后请核对进程名和创建时间。当前不读世界存档、聊天或完整服务器日志，也不报告未采集的 TPS / MSPT。
 
@@ -119,7 +136,7 @@ Minecraft 协议响应与进程资源分开采集。服务进程 PID 需要手�
 ## 数据、安全与恢复
 
 - 只监听 `127.0.0.1:8765`，校验 Host / Origin，并使用本机会话 Cookie 和写请求确认头；不提供局域网或公网管理模式。
-- 默认数据目录：`~/Library/Application Support/MacNetLab`。可用 `--data-dir /path/to/data` 指定。配置、历史和快照在 SQLite，设备凭据在系统钥匙串，已核实公钥在独立 `known_hosts`。
+- 默认数据目录：macOS 为 `~/Library/Application Support/MacNetLab`，Windows 为 `%LOCALAPPDATA%\MacNetLab`。旧 Windows 预览若在原默认目录已有数据库且新目录没有，继续使用旧目录，不自动搬动或覆盖。可用 `--data-dir /path/to/data` 指定。配置、历史和快照在 SQLite，设备凭据在系统凭据存储，已核实公钥在独立 `known_hosts`。
 - SSH 不自动信任新主机，不使用 SSH agent 或任意 Shell 输入。先经可信渠道核实公钥，再在设置粘贴完整 OpenSSH 记录。保存会替换本工具原有记录。
 - 默认保留 7 天，可设置 1–30 天；另有样本 / 证据行数上限、单条输出上限与数据盘低空间暂停。SQLite 主库设置约 512 MiB 页面上限；WAL 不计入这个上限。
 - 拓扑配置 JSON 导出移除凭据引用并禁用检测，导入创建新站点；诊断 JSON 保留检测当时的配置状态，只用于阅读分析，不用于导入。**IP、BSSID 和备注保留**；截图和证据导出也需要人工检查后再分享。
@@ -129,7 +146,7 @@ Minecraft 协议响应与进程资源分开采集。服务进程 PID 需要手�
 
 ## 开发与验证
 
-Vue 3 + TypeScript + Vue Flow；FastAPI + asyncio；SQLite；AsyncSSH；CoreWLAN / psutil / keyring。
+Vue 3 + TypeScript + Vue Flow；FastAPI + asyncio；SQLite；AsyncSSH；CoreWLAN / Windows Native Wi-Fi、NetAdapter / CIM / psutil / keyring。
 
 macOS / Linux 开发测试：
 
@@ -142,11 +159,13 @@ npm --prefix frontend run build
 .venv/bin/python -m pytest -q
 ```
 
-Windows 仅用于通用开发预览，后两步使用 `.venv\Scripts\python.exe`；启动时明确加 `--preview`：
+Windows 开发测试使用 `.venv\Scripts\python.exe`；正常启动无需预览参数：
 
 ```powershell
-.venv\Scripts\python.exe -m macnet.cli --preview --data-dir .\data
+.venv\Scripts\python.exe -m macnet.cli --data-dir .\data
 ```
+
+Linux 等其他系统仍需显式 `--preview`，仅验证通用能力，不模拟 Windows/macOS 专属字段。
 
 生产前端输出到 `macnet/static`，不提交生成文件。发布 Python 包前必须先构建前端。`python -m build` 打包的 wheel 包含已构建界面，源码仓库直接 `pip install .` 而未构建前端时会提示 503。
 
@@ -157,9 +176,10 @@ Windows 仅用于通用开发预览，后两步使用 `.venv\Scripts\python.exe`
 - [x] 拓扑 → 只读检测 → 故障快照 → 诊断导出闭环。
 - [x] 打印、USB、Minecraft、KWRT / Nikki 的限定采集适配与安装入口。
 - [x] 问题日记、完整保留范围的诊断 JSON、脱敏预览和手动 AI 交接。
-- [ ] [真实 Mac 验收](MAC_ACCEPTANCE.md)：单有线、单 Wi-Fi、单 AC 多 AP、双接口不串路、休眠恢复、打印与钥匙串。
+- [x] Windows 原生配置 / Wi-Fi / 打印适配和 IPv4 socket 接口绑定。
+- [ ] [双平台实机验收](PLATFORM_SUPPORT.md)及[Mac 清单](MAC_ACCEPTANCE.md)：单有线、单 Wi-Fi、单 AC 多 AP、双接口不串路、休眠恢复、打印与钥匙串。
 - [ ] 图表化历史、IPv6 主动探测、设备控制器深度指标、受限 Minecraft 日志。
 - [ ] 参数化受控修复：逐动作确认、设备端恢复、验证与审计，通过故障注入演练后再启用。
-- [ ] 签名 / 公证的 macOS 应用包与 Intel / Apple Silicon 兼容性确认。
+- [ ] Windows 独立安装包、macOS 签名 / 公证应用包与架构兼容性确认。
 
 欢迎用脱敏拓扑与复现步骤提交 Issue。代码采用 [MIT License](../LICENSE)；依赖保留各自许可证。

@@ -21,6 +21,7 @@ const icons: Record<string, any> = {
   ac: Shield,
   ap: Radio,
   mac: Monitor,
+  computer: Monitor,
   server: Server,
   printer: Printer,
   device: Box,

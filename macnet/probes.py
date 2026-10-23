@@ -26,15 +26,21 @@ class Unobservable(ValueError):
     pass
 
 
+def interface_options(interface):
+    if sys.platform == "darwin":
+        return [(socket.IPPROTO_IP, 25, socket.if_nametoindex(interface))]
+    if sys.platform == "win32":
+        from .windows import unicast_option
+        return [unicast_option(interface)]
+    raise Unobservable("此平台尚未实现接口绑定；不回退到系统默认路径")
+
+
 def bound_socket(kind, interface=""):
     sock = socket.socket(socket.AF_INET, kind)
     try:
         if interface:
-            if sys.platform != "darwin":
-                raise Unobservable("指定接口的检测仅在 macOS 开放；不回退到系统默认路径")
-            index = socket.if_nametoindex(interface)
-            # Darwin <netinet/in.h>: IP_BOUND_IF. This binds egress, not just source IP.
-            sock.setsockopt(socket.IPPROTO_IP, 25, index)
+            for option in interface_options(interface):
+                sock.setsockopt(*option)
         sock.setblocking(False)
         return sock
     except BaseException:
@@ -88,7 +94,7 @@ async def tcp(host, port, interface="", timeout=4):
 
 
 async def direct_http_status(url, interface="", dns_server="", timeout=4):
-    """HTTP/1.1 over the same IP_BOUND_IF socket used by TCP; no redirect or proxy."""
+    """HTTP/1.1 over the same interface-bound socket used by TCP; no redirect or proxy."""
     parsed = httpx.URL(url)
     hostname = parsed.raw_host.decode("ascii")
     address = await resolve(hostname, dns_server, interface, timeout)
@@ -215,6 +221,10 @@ class Probes:
                 return result
         except Unobservable as e:
             return Result(status="unknown", message=str(e), detail=path)
+        except TimeoutError:
+            if sys.platform == "win32" and probe.kind == "printing":
+                return Result(status="unknown", message="Windows 打印查询超时，未判定打印服务故障；可将此项超时设为 15 秒后重试", detail=path)
+            return Result(status="failed", message="检测超时", latency_ms=round((time.perf_counter() - start) * 1000, 2), detail=path)
         except Exception as e:
             return Result(status="failed", message=str(e) or type(e).__name__, latency_ms=round((time.perf_counter() - start) * 1000, 2), detail=path)
 
@@ -222,7 +232,7 @@ class Probes:
         detail = {}
         if p.kind in ("resources", "printing"):
             if not d.local:
-                raise Unobservable("此项只采集本机；请将对应 Mac 标为本机设备")
+                raise Unobservable("此项只采集本机；请将对应电脑标为本机设备")
             if p.kind == "resources":
                 detail = await asyncio.to_thread(resource_info)
                 if p.process_id:
@@ -247,13 +257,11 @@ class Probes:
             if p.kind == "mihomo":
                 options = None
                 if p.interface:
-                    if sys.platform != "darwin":
-                        raise Unobservable("接口绑定需要 macOS")
                     try:
                         ipaddress.IPv4Address(u.hostname)
                     except ValueError:
                         raise Unobservable("绑定接口的控制 API 请填写 IPv4 地址，避免跨接口 DNS 解析")
-                    options = [(socket.IPPROTO_IP, 25, socket.if_nametoindex(p.interface))]
+                    options = interface_options(p.interface)
                 token = self.vault.get(d.credential_ref).api_token
                 transport = httpx.AsyncHTTPTransport(socket_options=options, trust_env=False)
                 async with httpx.AsyncClient(transport=transport, timeout=p.timeout, trust_env=False) as client:
@@ -270,10 +278,8 @@ class Probes:
                     raise ValueError("请设置显式代理地址")
                 options = None
                 if p.interface:
-                    if sys.platform != "darwin":
-                        raise Unobservable("代理接口绑定需要 macOS；不回退到默认路径")
                     ipaddress.IPv4Address(proxy.hostname)
-                    options = [(socket.IPPROTO_IP, 25, socket.if_nametoindex(p.interface))]
+                    options = interface_options(p.interface)
                 transport = httpx.AsyncHTTPTransport(proxy=p.proxy_url, socket_options=options, trust_env=False)
                 async with httpx.AsyncClient(transport=transport, timeout=p.timeout, trust_env=False) as client:
                     async with client.stream("GET", url) as response:
@@ -288,6 +294,8 @@ class Probes:
                 status = await direct_http_status(url, p.interface, p.dns_server, p.timeout)
             return Result(status="healthy" if status == p.expected_status else "failed", message=f"HTTP {status}，预期 {p.expected_status}", detail={**detail, "http_status": status})
         else:
+            if p.kind == "ping" and p.interface and sys.platform != "darwin":
+                raise Unobservable("此系统的 ICMP 尚无可靠接口绑定；请改用绑定接口的 TCP/DNS/HTTP，不回退默认路径")
             host = await resolve(p.target or d.host, p.dns_server, p.interface, p.timeout)
             if p.kind == "dns":
                 detail = {"answer": host, "server": p.dns_server or "system"}
@@ -303,7 +311,7 @@ class Probes:
                     if p.interface:
                         args += ["-b", p.interface]
                 elif p.interface:
-                    raise Unobservable("接口绑定需要 macOS")
+                    raise Unobservable("此系统的 ICMP 尚无可靠接口绑定；请改用绑定接口的 TCP/DNS/HTTP，不回退默认路径")
                 else:
                     args = ["ping", "-n", "1", "-w", str(p.timeout * 1000)] if sys.platform == "win32" else ["ping", "-c", "1", "-W", str(p.timeout)]
                 code, out, err = await command(args + [host], timeout=p.timeout + 1)

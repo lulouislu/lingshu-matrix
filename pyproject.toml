@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "macnet-lab"
 version = "0.1.0"
-description = "Topology-aware macOS network operations workbench"
+description = "Topology-aware Windows and macOS network operations workbench"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"

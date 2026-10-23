@@ -39,3 +39,13 @@ describe("topology drafts", () => {
     expect(original.target).toBe("192.0.2.1");
   });
 });
+
+it("creates a platform-neutral operations computer with all physical port types", () => {
+  const device = newDevice("computer", 0, 0);
+  expect(device.kind).toBe("computer");
+  expect(device.interfaces.map((i) => i.kind)).toEqual([
+    "ethernet",
+    "wifi",
+    "usb",
+  ]);
+});

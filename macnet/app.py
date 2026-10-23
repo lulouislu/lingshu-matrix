@@ -5,6 +5,7 @@ import contextlib
 import json
 import os
 import secrets
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -28,7 +29,15 @@ from .examples import template
 
 
 def default_directory():
-    return Path(os.environ.get("MACNET_DATA_DIR", str(Path.home() / "Library" / "Application Support" / "MacNetLab")))
+    if os.environ.get("MACNET_DATA_DIR"):
+        return Path(os.environ["MACNET_DATA_DIR"])
+    legacy = Path.home() / "Library" / "Application Support" / "MacNetLab"
+    if sys.platform == "win32":
+        target = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))) / "MacNetLab"
+        # Preserve data made with the previous Windows preview entry point.
+        return legacy if (legacy / "macnet.sqlite3").exists() and not (target / "macnet.sqlite3").exists() else target
+    return legacy
+
 
 
 class Monitoring(BaseModel):

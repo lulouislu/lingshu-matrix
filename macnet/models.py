@@ -21,7 +21,7 @@ class Interface(Model):
 class Device(Model):
     id: str = Field(min_length=1, max_length=64, pattern=r"^[\w.-]+$")
     label: str = Field(min_length=1, max_length=100)
-    kind: Literal["gateway", "switch", "ac", "ap", "mac", "server", "printer", "device"] = "device"
+    kind: Literal["gateway", "switch", "ac", "ap", "mac", "computer", "server", "printer", "device"] = "device"
     host: str = Field(default="", max_length=255)
     interfaces: list[Interface] = Field(default_factory=list, max_length=32)
     services: list[str] = Field(default_factory=list, max_length=32)
@@ -50,7 +50,7 @@ class Probe(Model):
     kind: Literal["ping", "tcp", "dns", "http", "proxy", "mihomo", "minecraft_java", "minecraft_bedrock", "printing", "resources", "ssh"]
     target: str = Field(default="", max_length=2048)
     port: int = Field(default=0, ge=0, le=65535)
-    interface: str = Field(default="", max_length=64, pattern=r"^[\w. -]*$")
+    interface: str = Field(default="", max_length=256, pattern=r"^[^\x00-\x1f\x7f]*$")
     dns_server: str = Field(default="", max_length=255)
     proxy_url: str = Field(default="", max_length=255)
     expected_status: int = Field(default=200, ge=100, le=599)

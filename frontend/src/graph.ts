@@ -4,6 +4,7 @@ export const kinds: Record<string, string> = {
   switch: "交换机",
   ac: "无线控制器",
   ap: "无线 AP",
+  computer: "运维电脑 / 笔记本",
   mac: "Mac / MacBook",
   server: "服务器",
   printer: "打印机",
@@ -49,21 +50,20 @@ export function deviceStatus(
   return "unknown";
 }
 export function newDevice(kind: string, x: number, y: number): Device {
-  const ports =
-    kind === "mac"
+  const ports = ["mac", "computer"].includes(kind)
+    ? [
+        ["ethernet", "ethernet"],
+        ["wifi", "wifi"],
+        ["usb", "usb"],
+      ]
+    : kind === "ap"
       ? [
-          ["ethernet", "ethernet"],
-          ["wifi", "wifi"],
-          ["usb", "usb"],
+          ["uplink", "ethernet"],
+          ["radio", "wifi"],
         ]
-      : kind === "ap"
-        ? [
-            ["uplink", "ethernet"],
-            ["radio", "wifi"],
-          ]
-        : kind === "printer"
-          ? [["usb", "usb"]]
-          : [["lan", "ethernet"]];
+      : kind === "printer"
+        ? [["usb", "usb"]]
+        : [["lan", "ethernet"]];
   return {
     id: crypto.randomUUID().replaceAll("-", "").slice(0, 16),
     label: kinds[kind] || "设备",

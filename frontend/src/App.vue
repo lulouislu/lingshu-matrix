@@ -140,12 +140,15 @@ const icons: Record<string, any> = {
   ac: ShieldCheck,
   ap: Radio,
   mac: Monitor,
+  computer: Monitor,
   server: Server,
   printer: Printer,
   device: Box,
 };
 const contextUp = computed(() =>
-  state.value.context.interfaces.filter((i) => i.up && i.kind !== "logical"),
+  state.value.context.interfaces.filter(
+    (i) => i.up && ["ethernet", "wifi"].includes(i.kind),
+  ),
 );
 const latest = (id: string) => state.value.latest.find((s) => s.probe === id);
 const fmtTime = (at: number) =>
@@ -647,7 +650,16 @@ window.addEventListener("beforeunload", (e) => {
       <div class="sidebar-bottom">
         <span class="local-badge"><ShieldCheck :size="15" /> 本地优先</span>
         <p>拓扑描述环境<br />证据解释问题</p>
-        <small>v0.1.0 · macOS</small>
+        <small
+          >v0.1.0 ·
+          {{
+            state.context.platform === "win32"
+              ? "Windows"
+              : state.context.platform === "darwin"
+                ? "macOS"
+                : "跨平台"
+          }}</small
+        >
       </div>
     </aside>
     <div class="workspace">
@@ -899,6 +911,12 @@ window.addEventListener("beforeunload", (e) => {
                     {{ i.wifi.rssi_dbm ?? "—" }} dBm ·
                     {{ i.wifi.bssid || "BSSID 未提供" }}
                   </p>
+                  <p
+                    v-if="i.wifi?.identity_note || i.wifi?.reason"
+                    class="muted"
+                  >
+                    {{ i.wifi.identity_note || i.wifi.reason }}
+                  </p>
                   <p v-if="i.wifi">
                     {{
                       state.ap_associations.find((a) => a.interface === i.id)
@@ -1022,7 +1040,7 @@ window.addEventListener("beforeunload", (e) => {
                   type="checkbox"
                   v-model="device.local"
                   @change="markDirty"
-                />这是运行工作台的本机 Mac</label
+                />这是运行工作台的本机电脑</label
               ><label
                 >设备上运行的服务<input
                   :value="device.services.join(', ')"
@@ -1326,8 +1344,34 @@ window.addEventListener("beforeunload", (e) => {
             <div class="inspector-body">
               <template v-if="settingsTab === 'general'"
                 ><label v-if="site"
-                  >站点名称<input v-model="site.name" @input="markDirty"
+                  >站点名称<input
+                    v-model="site.name"
+                    :disabled="busy"
+                    @input="markDirty"
                 /></label>
+                <div v-if="state.context.capabilities" class="tip">
+                  <span
+                    >当前平台：{{
+                      state.context.platform === "win32"
+                        ? "Windows"
+                        : state.context.platform === "darwin"
+                          ? "macOS"
+                          : "开发预览"
+                    }}<br />
+                    接口绑定：{{
+                      state.context.capabilities.ipv4_interface_binding
+                    }}<br />
+                    Wi-Fi：{{ state.context.capabilities.wifi }} · 打印：{{
+                      state.context.capabilities.printing
+                    }}<br />
+                    绑定接口的 ICMP：{{
+                      state.context.capabilities.interface_bound_ping ===
+                      "implemented"
+                        ? "已实现"
+                        : "未支持，请使用 TCP/DNS/HTTP"
+                    }}
+                  </span>
+                </div>
                 <p class="muted">
                   诊断报告在本机生成，在「诊断导出」下载后自行分享；无需配置
                   AI。
@@ -1437,7 +1481,12 @@ window.addEventListener("beforeunload", (e) => {
         <label>名称<input v-model="probeDraft.label" /></label>
         <div class="form-grid">
           <label
-            >检测类型<select v-model="probeDraft.kind">
+            >检测类型<select
+              v-model="probeDraft.kind"
+              @change="
+                if (probeDraft.kind === 'printing') probeDraft.timeout = 15;
+              "
+            >
               <option
                 v-for="(label, key) in {
                   ping: 'ICMP 连通性',

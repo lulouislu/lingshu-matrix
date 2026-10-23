@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 if [ "$(uname -s)" != Darwin ]; then
-  echo 'This installer targets macOS. See README for development preview.' >&2
+  echo 'This shell installer targets macOS. On Windows use python scripts/install.py.' >&2
   exit 1
 fi
 PYTHON="${PYTHON:-python3}"

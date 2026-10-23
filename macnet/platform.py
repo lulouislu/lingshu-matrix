@@ -1,4 +1,4 @@
-"""Read-only host adapters. macOS fields are not simulated on other systems."""
+"""Read-only macOS/Windows host adapters with explicit unavailable states."""
 from __future__ import annotations
 
 import asyncio
@@ -15,7 +15,8 @@ import psutil
 async def command(argv: list[str], timeout=5, limit=64000) -> tuple[int, str, str]:
     """No shell. Bound runtime and output; reap children on cancellation too."""
     process = await asyncio.create_subprocess_exec(
-        *argv, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        *argv, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        **({"creationflags": 0x08000000} if sys.platform == "win32" else {})
     )
 
     async def read(stream):
@@ -71,8 +72,11 @@ def parse_dns(text: str) -> dict[str, list[str]]:
 
 
 def wifi_info(name: str) -> dict:
+    if sys.platform == "win32":
+        from .windows import wifi_info as windows_wifi
+        return windows_wifi(name)
     if sys.platform != "darwin":
-        return {"available": False, "reason": "此采集器仅支持 macOS"}
+        return {"available": False, "reason": "此系统未实现 Wi-Fi 采集"}
     try:
         import CoreWLAN
         import objc
@@ -106,7 +110,13 @@ def interface_kind(name, label, ips):
 
 
 async def observation() -> dict:
-    hardware, dns = {}, {}
+    hardware, dns, windows, notes = {}, {}, {}, []
+    if sys.platform == "win32":
+        from .windows import network_metadata
+        try:
+            windows = await network_metadata(command)
+        except (OSError, TimeoutError, ValueError) as exc:
+            notes.append(str(exc))
     if sys.platform == "darwin":
         try:
             _, out, _ = await command(["/usr/sbin/networksetup", "-listallhardwareports"])
@@ -121,15 +131,25 @@ async def observation() -> dict:
     for name, addresses in psutil.net_if_addrs().items():
         stat = stats.get(name)
         ips = [a.address for a in addresses if a.family in (socket.AF_INET, socket.AF_INET6)]
-        if not stat or not ips:
+        if not stat:
             continue
-        label = hardware.get(name, name)
+        extra = windows.get(name, {})
+        label = hardware.get(name, extra.get("description", name))
         kind = interface_kind(name, label, ips)
+        if extra:
+            kind = "logical" if not extra["hardware"] else "wifi" if extra["medium"] in (1, 9) else "ethernet"
+        elif sys.platform == "win32" and kind != "logical":
+            kind = "unknown"
         item = {
             "id": name, "label": label, "kind": kind, "up": stat.isup,
             "addresses": ips, "speed_mbps": stat.speed or None,
-            "dns_servers": dns.get(name, []), "route": {},
+            "dns_servers": extra.get("dns", dns.get(name, [])), "route": {},
         }
+        if extra:
+            item["index"] = extra["index"]
+            item["default_routes"] = extra.get("routes", [])
+            if item["default_routes"]:
+                item["route"] = {"gateway": item["default_routes"][0]["gateway"], "interface": name}
         if counters.get(name):
             item["counters"] = counters[name]._asdict()
         if sys.platform == "darwin" and stat.isup and kind != "logical":
@@ -144,10 +164,12 @@ async def observation() -> dict:
         interfaces.append(item)
     return {
         "platform": sys.platform,
-        "macos_supported": sys.platform == "darwin",
+        "macos_supported": sys.platform == "darwin",  # Legacy field keeps its original meaning.
+        "supported_platform": sys.platform in ("darwin", "win32"),
+        "capabilities": capabilities(),
         "hostname": socket.gethostname(),
         "interfaces": interfaces,
-        "note": "" if sys.platform == "darwin" else "当前为开发预览环境；macOS 网络和外设功能未在此环境验证",
+        "note": "；".join(notes) if sys.platform in ("darwin", "win32") else "当前系统仅提供通用开发预览；平台专属功能不可用",
     }
 
 
@@ -162,8 +184,11 @@ def resource_info() -> dict:
 
 
 async def printing_info() -> dict:
+    if sys.platform == "win32":
+        from .windows import printing_info as windows_printing
+        return await windows_printing(command)
     if sys.platform != "darwin":
-        return {"status": "unknown", "reason": "打印与 USB 采集需要 macOS"}
+        return {"status": "unknown", "reason": "此系统未实现打印与 USB 采集"}
     data = {}
     for key, argv in {
         "scheduler": ["/usr/bin/lpstat", "-r"],
@@ -182,3 +207,14 @@ async def printing_info() -> dict:
         except (OSError, TimeoutError, ValueError) as e:
             data[key] = {"error": str(e)}
     return data
+
+
+def capabilities():
+    native = sys.platform in ("darwin", "win32")
+    return {"topology_and_reports": "available", "resources": "available",
+            "network_configuration": "implemented" if native else "unavailable",
+            "wifi": "CoreWLAN" if sys.platform == "darwin" else "Native Wi-Fi" if sys.platform == "win32" else "unavailable",
+            "printing": "CUPS/IOUSB" if sys.platform == "darwin" else "Spooler/CIM" if sys.platform == "win32" else "unavailable",
+            "ipv4_interface_binding": "IP_BOUND_IF" if sys.platform == "darwin" else "IP_UNICAST_IF" if sys.platform == "win32" else "unavailable",
+            "interface_bound_ping": "implemented" if sys.platform == "darwin" else "unavailable",
+            "interface_bound_ssh": "unavailable", "active_ipv6": "unavailable"}

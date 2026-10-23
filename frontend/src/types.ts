@@ -79,6 +79,8 @@ export type Incident = {
 export type Context = {
   platform?: string;
   macos_supported?: boolean;
+  supported_platform?: boolean;
+  capabilities?: Record<string, string>;
   hostname?: string;
   note?: string;
   interfaces: Array<{
@@ -96,6 +98,9 @@ export type Context = {
       rssi_dbm: number | null;
       tx_rate_mbps: number | null;
       identity_note?: string;
+      available?: boolean;
+      reason?: string;
+      signal_quality_percent?: number;
     };
   }>;
 };
