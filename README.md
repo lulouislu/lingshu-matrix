@@ -54,6 +54,11 @@ _开发预览中的示例拓扑，未配置真实网络地址或启用自动检�
 
 ### 🏗️ 四步工作流 / Architecture & Workflow
 
+![四步证据工作流 / Four-step evidence workflow](docs/workflow.svg)
+
+<details>
+<summary>Mermaid 版本 / Editable Mermaid diagram</summary>
+
 ```mermaid
 flowchart LR
     A["1. 描述网络拓扑<br/>Model the topology"] --> B["2. 配置检测与接口<br/>Configure probes and interfaces"]
@@ -61,6 +66,8 @@ flowchart LR
     C --> D["4. 本地摘要或 AI 分析<br/>Local summary or opt-in AI"]
     D -. "人工选择下一项只读检查<br/>Human-selected read-only checks" .-> B
 ```
+
+</details>
 
 1. **拓扑建模**：拖入设备，连接具体接口，为服务补充名称和备注；拓扑是声明，不冒充自动发现结果。
 2. **配置检测**：明确目标、端口、源接口、间隔与失败阈值。先手动运行，再按需启用自动监控。
