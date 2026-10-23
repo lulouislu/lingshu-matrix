@@ -9,9 +9,9 @@ from collections import Counter
 from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlunsplit
 
-from . import __version__
+from . import __version__, DISPLAY_NAME
 
-AI_GUIDE = """请根据附件中的 MacNet Lab 问题日记或诊断 JSON，分析网络问题。
+AI_GUIDE = f"""请根据附件中的 {DISPLAY_NAME} 问题日记或诊断 JSON，分析网络问题。
 先阅读用户描述、覆盖范围、已声明拓扑、检测源接口和时间线。
 将结论分为：已观察事实、可能原因（附依据）、缺失证据、下一步只读检查。
 引用 sample / incident / evidence / event ID，并区分故障当时与导出时的观测。
@@ -83,7 +83,7 @@ def build_report(store, engine, site_id, request):
     ]
     report = {
         "schema": "macnet.diagnostic-report", "schema_version": 1,
-        "application": {"name": "MacNet Lab", "version": __version__},
+        "application": {"name": DISPLAY_NAME, "version": __version__},
         "generated_at": now, "generated_at_utc": iso(now), "time_basis": "Unix seconds; rendered dates use UTC",
         "issue": notes, "focus_incident_id": request.incident_id or None,
         "coverage": {
@@ -119,7 +119,7 @@ def json_block(value):
 
 def markdown_report(report):
     coverage = report["coverage"]
-    sections = ["# MacNet Lab 网络问题日记", f"生成时间：{report['generated_at_utc']}（UTC）",
+    sections = [f"# {DISPLAY_NAME} 网络问题日记", f"生成时间：{report['generated_at_utc']}（UTC）",
                 f"应用版本：{report['application']['version']} · 格式：{report['schema']} v{report['schema_version']}",
                 f"重点故障：{report['focus_incident_id'] or '未指定'}（仍包含此站点全部保留记录）",
                 f"记录：{coverage['counts']['samples']} 条检测 / {coverage['counts']['incidents']} 个故障 / {coverage['counts']['evidence']} 份快照 / {coverage['counts']['events']} 条接入与采集事件",
@@ -139,5 +139,5 @@ def markdown_report(report):
         sections.extend([f"### {entry['time_utc']} · {entry['kind']} #{entry['id']}",
                          json_block(indices[entry["kind"]][entry["id"]])])
     sections.extend(["## 8. 交给 AI 的排查说明", report["ai_handoff_instructions"],
-                     "报告由本机生成；MacNet Lab 未调用 AI 或上传这份报告。"])
+                     f"报告由本机生成；{DISPLAY_NAME} 未调用 AI 或上传这份报告。"])
     return "\n\n".join(sections)

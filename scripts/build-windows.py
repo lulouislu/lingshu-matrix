@@ -17,7 +17,7 @@ def copy_licenses(root, bundle):
     pending = [Requirement(item) for item in tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["dependencies"]]
     pending.append(Requirement("pyinstaller"))  # The executable embeds its bootloader.
     visited, copied = set(), set()
-    notices = ["MacNet Lab runtime dependencies and build bootloader. See licenses/ for supplied licenses and notices.\n"]
+    notices = ["LingShu Matrix runtime dependencies and build bootloader. See licenses/ for supplied licenses and notices.\n"]
     while pending:
         requirement = pending.pop()
         if requirement.marker and not requirement.marker.evaluate():
@@ -70,7 +70,7 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     work.mkdir(parents=True, exist_ok=True)
     command = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onedir", "--console",
-               "--noupx", "--name", "MacNetLab", "--distpath", str(output), "--workpath", str(work / "analysis"),
+               "--noupx", "--name", "LingShuMatrix", "--distpath", str(output), "--workpath", str(work / "analysis"),
                "--specpath", str(work), "--paths", str(root), "--add-data", f"{root / 'macnet/static'}:macnet/static",
                "--copy-metadata", "keyring", "--hidden-import", "keyring.backends.Windows",
                "--hidden-import", "uvicorn.logging", "--hidden-import", "uvicorn.loops.asyncio",
@@ -84,14 +84,17 @@ def main():
         command.extend(["--add-data", f"{ssl_policy}:."])
     command.append(str(root / "scripts/portable_entry.py"))
     subprocess.run(command, cwd=root, check=True)
-    bundle = output / "MacNetLab"
+    bundle = output / "LingShuMatrix"
+    # Retain the previous executable/launcher names for existing shortcuts.
+    shutil.copy2(bundle / "LingShuMatrix.exe", bundle / "MacNetLab.exe")
     shutil.copy2(root / "LICENSE", bundle / "LICENSE.txt")
     shutil.copy2(root / "docs/WINDOWS_PORTABLE.md", bundle / "START_HERE.md")
     shutil.copy2(root / "scripts/start-portable.cmd", bundle / "Start-MacNetLab.cmd")
+    shutil.copy2(root / "scripts/start-portable.cmd", bundle / "Start-LingShuMatrix.cmd")
     copy_licenses(root, bundle)
     version = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
-    archive = shutil.make_archive(str(output / f"macnet-lab-{version}-windows-x64"), "zip", output, "MacNetLab")
-    print(f"\nPortable ZIP: {archive}\nUnzip the whole folder, then double-click MacNetLab.exe.")
+    archive = shutil.make_archive(str(output / f"lingshu-matrix-{version}-windows-x64"), "zip", output, "LingShuMatrix")
+    print(f"\nPortable ZIP: {archive}\nUnzip the whole folder, then double-click LingShuMatrix.exe.")
 
 
 if __name__ == "__main__":

@@ -53,6 +53,7 @@ import {
 import { toPng } from "html-to-image";
 import DeviceNode from "./DeviceNode.vue";
 import { api, download } from "./api";
+import { version as appVersion } from "../package.json";
 import {
   kinds,
   links,
@@ -606,9 +607,9 @@ window.addEventListener("beforeunload", (e) => {
 <template>
   <div class="app-shell">
     <aside class="sidebar">
-      <a class="brand" href="/" aria-label="MacNet Lab 首页"
+      <a class="brand" href="/" aria-label="灵枢 · LingShu Matrix 首页"
         ><span class="brand-mark"><Network :size="22" /></span
-        ><span>MacNet<span class="brand-sub">LAB / WORKBENCH</span></span></a
+        ><span>灵枢<span class="brand-sub">LINGSHU MATRIX</span></span></a
       >
       <div class="sidebar-label">工作空间</div>
       <nav>
@@ -665,7 +666,7 @@ window.addEventListener("beforeunload", (e) => {
         <span class="local-badge"><ShieldCheck :size="15" /> 本地优先</span>
         <p>拓扑描述环境<br />证据解释问题</p>
         <small
-          >v0.1.0 ·
+          >v{{ appVersion }} ·
           {{
             state.context.platform === "win32"
               ? "Windows"

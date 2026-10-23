@@ -12,7 +12,7 @@ import urllib.error
 import urllib.request
 import webbrowser
 
-from . import __version__
+from . import __version__, DISPLAY_NAME
 
 ADDRESS = ("127.0.0.1", 8765)
 URL = "http://127.0.0.1:8765"
@@ -81,7 +81,7 @@ def run(directory, no_browser=False):
         listener = reserve_listener()
     except OSError as exc:
         if existing_instance(directory):
-            print("MacNet Lab 已在运行，打开现有工作台 / Already running: " + URL, flush=True)
+            print(DISPLAY_NAME + " 已在运行，打开现有工作台 / Already running: " + URL, flush=True)
             if not no_browser:
                 open_browser()
             return 0
@@ -109,7 +109,7 @@ def run(directory, no_browser=False):
             async def startup(self, sockets=None):
                 await super().startup(sockets)
                 if self.started:
-                    print(f"\nMacNet Lab {__version__} · {URL}\n数据 / Data: {directory}\n"
+                    print(f"\n{DISPLAY_NAME} {__version__} · {URL}\n数据 / Data: {directory}\n"
                           "保持此窗口运行；退出请按 Ctrl+C。关闭网页不会停止采集。\n"
                           "Keep this window open. Ctrl+C stops the app; closing the browser does not.\n", flush=True)
                     if not no_browser:
@@ -123,8 +123,8 @@ def run(directory, no_browser=False):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="MacNet Lab · Windows / macOS 跨平台运维工作台")
-    parser.add_argument("--version", action="version", version=f"MacNet Lab {__version__}")
+    parser = argparse.ArgumentParser(description=DISPLAY_NAME + " · Windows / macOS 跨平台运维工作台")
+    parser.add_argument("--version", action="version", version=f"{DISPLAY_NAME} {__version__}")
     parser.add_argument("--data-dir", help="数据库与本地诊断数据目录")
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--preview", action="store_true", help="在其他系统预览通用界面，不模拟平台采集")

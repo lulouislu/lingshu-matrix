@@ -163,6 +163,7 @@ code {
   margin: 0 8px 39px;
 }
 .brand-mark {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -175,8 +176,8 @@ code {
 }
 .brand-sub {
   display: block;
-  font-size: 8px;
-  letter-spacing: 2px;
+  font-size: 10px;
+  letter-spacing: 0.7px;
   color: #8095b7;
   font-weight: 500;
   margin-top: -2px;

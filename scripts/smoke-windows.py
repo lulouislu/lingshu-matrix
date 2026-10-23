@@ -37,7 +37,16 @@ def main():
     runtime = subprocess.run([str(executable), "--check-runtime"], env=environment,
                              stdin=subprocess.DEVNULL, capture_output=True, timeout=30)
     assert runtime.returncode == 0, runtime.stderr.decode(errors="replace")
-    assert json.loads(runtime.stdout)["certificate_verification"] is True
+    runtime_info = json.loads(runtime.stdout)
+    assert runtime_info["certificate_verification"] is True
+    assert runtime_info["name"] == "灵枢 · LingShu Matrix"
+    legacy = executable.with_name("MacNetLab.exe")
+    assert legacy.is_file(), "Legacy executable entry point is missing"
+    legacy_version = subprocess.run([str(legacy), "--version"], env=environment,
+                                    stdin=subprocess.DEVNULL, capture_output=True, timeout=30)
+    assert legacy_version.returncode == 0
+    assert "LingShu Matrix" in legacy_version.stdout.decode("utf-8")
+    assert runtime_info["version"] in legacy_version.stdout.decode("utf-8")
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
     def request(path, body=None):
@@ -62,6 +71,7 @@ def main():
                         try:
                             health = request("/api/health")
                             assert health["product"] == "macnet-lab" and health["instance"]
+                            assert health["name"] == "灵枢 · LingShu Matrix"
                             marker = json.loads((data_dir / "runtime.json").read_text())
                             assert health["instance"] == marker["instance"]
                             break
@@ -91,6 +101,8 @@ def main():
                     report = request(f"/api/sites/{site['id']}/diagnostics", {"issue": "便携包本机资源与导出验收；未检测外部地址"})
                     assert report["report"]["schema"] == "macnet.diagnostic-report"
                     assert report["report"]["schema_version"] == 1 and report["markdown"]
+                    assert report["report"]["application"]["name"] == runtime_info["name"]
+                    assert report["report"]["application"]["version"] == runtime_info["version"]
                     assert "这台电脑" in report["report"]["ai_handoff_instructions"]
                     assert report["report"]["current_observation"]["context"]["platform"] == "win32"
                     duplicate = subprocess.run(command, cwd=root, env=environment, stdin=subprocess.DEVNULL, capture_output=True, timeout=30)

@@ -11,7 +11,7 @@ LABEL = "com.macnetlab.workbench"
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Opt-in MacNet Lab login item")
+    parser = argparse.ArgumentParser(description="Opt-in LingShu Matrix login item")
     parser.add_argument("action", choices=["install", "remove", "status"])
     args = parser.parse_args()
     if sys.platform != "darwin":

@@ -1,11 +1,11 @@
 <div align="center">
 
-# 🌐 MacNet Lab
+# 🧭 灵枢 · LingShu Matrix
 
 **Visual Network Topology, Interface-Aware Monitoring & Portable Diagnostic Reports**<br />
 **面向运维人员的 Windows / macOS 跨平台网络证据工作台**
 
-[![Checks](https://github.com/lulouislu/macnet-lab/actions/workflows/checks.yml/badge.svg)](https://github.com/lulouislu/macnet-lab/actions/workflows/checks.yml)
+[![Checks](https://github.com/lulouislu/lingshu-matrix/actions/workflows/checks.yml/badge.svg)](https://github.com/lulouislu/lingshu-matrix/actions/workflows/checks.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platforms: Windows and macOS](https://img.shields.io/badge/Platforms-Windows%20%7C%20macOS-brightgreen.svg)](docs/PLATFORM_SUPPORT.md)
 [![Stage: Development Preview](https://img.shields.io/badge/Stage-Development%20Preview-orange.svg)](#roadmap-en)
@@ -17,19 +17,27 @@
 
 ---
 
-![MacNet Lab running natively on Windows — synthetic topology](docs/windows-workbench.png)
+![灵枢 · LingShu Matrix running natively on Windows — synthetic topology](docs/lingshu-windows-workbench.png)
 
-_Windows 原生运行的合成拓扑；没有配置真实网络目标，自动监控暂停。 / Native Windows run with a synthetic topology; no real network targets, monitoring paused._
+_Windows 运行的合成拓扑；没有配置真实网络目标，自动监控暂停。 / Native Windows run with a synthetic topology; no real network targets, monitoring paused._
 
 <a id="zh-cn"></a>
 
 ## 🇨🇳 简体中文
 
+### 💡 为什么叫「灵枢」？
+
+名称取意于《黄帝内经·灵枢》的经络意象：设备是节点，连接是脉络，排障需要看清它们之间的关系。
+
+**「灵」**是沿证据灵活定位问题，**「枢」**是汇集网络环境与故障现场，**「Matrix」**是可自由编排的拓扑画布。灵枢把这些信息整理成可阅读、可交给 AI 分析的资料。
+
+项目原名 **MacNet Lab**。此次更名沿用原有数据与凭据，旧启动命令仍可使用；升级方法见[使用手册](docs/USAGE_ZH.md)。
+
 ### 📖 让 AI 先看懂网络，再定位问题
 
 网络出问题时，单独一条 Ping 结果往往解释不了：MacBook 正接在哪个 AP 下？有线与 Wi-Fi 的出口是否不同？手机打印失败，是网络、Mac 的共享服务，还是 USB 打印机的问题？Minecraft 连不上，又是主机资源还是服务响应出了问题？
 
-**MacNet Lab** 用“拼积木”的方式描述网络，把**用户声明的拓扑、当前接入位置、检测路径和故障证据**放在一起，导出为完整的问题日记（Markdown）或 JSON，由用户自行交给任何 AI 排查。软件不接入模型，不需要 API 密钥或 AI 登录。
+**灵枢 · LingShu Matrix** 用“拼积木”的方式描述网络，把**用户声明的拓扑、当前接入位置、检测路径和故障证据**放在一起，导出为完整的问题日记（Markdown）或 JSON，由用户自行交给任何 AI 排查。软件不接入模型，不需要 API 密钥或 AI 登录。
 
 - **现场维护**：Windows 笔记本或 MacBook 接入机房网线、任意 AP，从当前位置开展获授权的检测。
 - **常驻监控**：常开电脑调度已启用的检测，记录故障与恢复。打印共享和 Minecraft 是可选场景，不是产品前提。
@@ -78,7 +86,7 @@ flowchart LR
 
 #### Windows x64 便携版（无需 Python / Node）
 
-从 [Checks 的成功运行](https://github.com/lulouislu/macnet-lab/actions/workflows/checks.yml) 下载 `macnet-lab-windows-x64` Artifact，解开外层产物 ZIP 和其中的应用 ZIP，保留完整文件夹，双击 **`MacNetLab.exe`**。浏览器自动打开工作台；保持启动窗口运行，在「连接设置 → 常规 → 退出工作台」确认退出，或按 `Ctrl+C` 停止。
+从 [Checks 的成功运行](https://github.com/lulouislu/lingshu-matrix/actions/workflows/checks.yml) 下载 `lingshu-matrix-windows-x64` Artifact，解开外层产物 ZIP 和其中的应用 ZIP，保留完整文件夹，双击 **`LingShuMatrix.exe`**。浏览器自动打开工作台；保持启动窗口运行，在「连接设置 → 常规 → 退出工作台」确认退出，或按 `Ctrl+C` 停止。
 
 这是未签名的开发预览，默认数据在 `%LOCALAPPDATA%\MacNetLab`，旧预览数据位置可能沿用。不自动安装、不注册启动项、不接入 AI。[便携版说明、数据迁移与构建](docs/WINDOWS_PORTABLE.md)。下载 Actions 产物需 GitHub 登录；源码的「Download ZIP」不是应用包。
 
@@ -89,8 +97,8 @@ flowchart LR
 #### macOS
 
 ```bash
-git clone https://github.com/lulouislu/macnet-lab.git
-cd macnet-lab
+git clone https://github.com/lulouislu/lingshu-matrix.git
+cd lingshu-matrix
 bash scripts/install-macos.sh
 bash scripts/start-macos.command
 ```
@@ -98,10 +106,10 @@ bash scripts/start-macos.command
 #### Windows（PowerShell / 终端）
 
 ```powershell
-git clone https://github.com/lulouislu/macnet-lab.git
-cd macnet-lab
+git clone https://github.com/lulouislu/lingshu-matrix.git
+cd lingshu-matrix
 python scripts/install.py
-.\.venv\Scripts\macnet-lab.exe
+.\.venv\Scripts\lingshu-matrix.exe
 ```
 
 Python 命令须指向已安装的 3.11+，也可用 `py -3` 替换 `python`。安装后可双击 `scripts/start-windows.cmd`。Windows 不需要 `--preview`，不需要修改系统执行策略或以管理员运行。
@@ -147,11 +155,19 @@ Python 命令须指向已安装的 3.11+，也可用 `py -3` 替换 `python`。�
 
 ## 🇬🇧 English
 
+### 💡 Why "LingShu"?
+
+**LingShu (灵枢)** takes inspiration from the meridian imagery of *Huangdi Neijing · LingShu*: devices are nodes, connections form pathways, and diagnosis depends on understanding their relationships.
+
+**Ling** expresses adaptable, evidence-led investigation; **Shu** is the hub that brings network context and incident evidence together; **Matrix** is the modular topology canvas. The result is a portable diagnostic record that users can give to their own AI tools.
+
+Formerly **MacNet Lab**. Existing data, credentials and legacy launch commands remain usable. See the [upgrade guide](docs/USAGE_ZH.md).
+
 ### 📖 Understand the network before diagnosing it
 
 A successful ping rarely tells the whole story. Which AP is the MacBook connected to? Are Ethernet and Wi-Fi using different paths? Is a printing failure caused by the network, the Mac's shared print service, or the USB printer? Is a Minecraft connection issue related to host resources or the service itself?
 
-**MacNet Lab** combines a block-building topology editor with **declared network relationships, the current observation point, path-specific checks and incident evidence**. Export a Markdown problem diary or versioned JSON and give it to any AI yourself. No built-in model connection, AI login or API key is needed.
+**LingShu Matrix** combines a block-building topology editor with **declared network relationships, the current observation point, path-specific checks and incident evidence**. Export a Markdown problem diary or versioned JSON and give it to any AI yourself. No built-in model connection, AI login or API key is needed.
 
 - **Field maintenance**: connect a Windows laptop or MacBook by Ethernet or through an AP and run authorized checks from that location.
 - **Resident monitoring**: keep a computer online to schedule enabled checks and retain incident and recovery records.
@@ -189,7 +205,7 @@ The diagram above follows the actual implementation:
 
 #### Windows x64 portable build (no Python / Node installation)
 
-Download the `macnet-lab-windows-x64` Artifact from a [successful Checks run](https://github.com/lulouislu/macnet-lab/actions/workflows/checks.yml), extract the artifact ZIP and its application ZIP, and double-click **`MacNetLab.exe`** with the entire folder intact. Keep the console open. Stop via **连接设置 → 常规 → 退出工作台**, or press `Ctrl+C` in the console.
+Download the `lingshu-matrix-windows-x64` Artifact from a [successful Checks run](https://github.com/lulouislu/lingshu-matrix/actions/workflows/checks.yml), extract the artifact ZIP and its application ZIP, and double-click **`LingShuMatrix.exe`** with the entire folder intact. Keep the console open. Stop via **连接设置 → 常规 → 退出工作台**, or press `Ctrl+C` in the console.
 
 This is an unsigned development preview. Data defaults to `%LOCALAPPDATA%\MacNetLab` (legacy preview data can retain its old location). No installer, startup registration or in-app AI connection is required. [Portable usage and build instructions](docs/WINDOWS_PORTABLE.md). GitHub sign-in is required for Actions artifact downloads; the source-code ZIP is not the application.
 
@@ -200,8 +216,8 @@ Requirements: **Windows or macOS, Python 3.11+, Node.js 22.12+ (use 22.x on macO
 #### macOS
 
 ```bash
-git clone https://github.com/lulouislu/macnet-lab.git
-cd macnet-lab
+git clone https://github.com/lulouislu/lingshu-matrix.git
+cd lingshu-matrix
 bash scripts/install-macos.sh
 bash scripts/start-macos.command
 ```
@@ -209,10 +225,10 @@ bash scripts/start-macos.command
 #### Windows (PowerShell / terminal)
 
 ```powershell
-git clone https://github.com/lulouislu/macnet-lab.git
-cd macnet-lab
+git clone https://github.com/lulouislu/lingshu-matrix.git
+cd lingshu-matrix
 python scripts/install.py
-.\.venv\Scripts\macnet-lab.exe
+.\.venv\Scripts\lingshu-matrix.exe
 ```
 
 Use an installed Python 3.11+ (`py -3` is also supported). After installation, `scripts/start-windows.cmd` is a double-click launcher. Windows needs neither `--preview` nor an administrator account or execution-policy changes.
@@ -260,10 +276,16 @@ Automatic remote-probe deployment and self-healing/rollback are not implemented.
 
 ---
 
-## 👨‍💻 Author & Contribution
+## 📄 开源协议与作者 / License & Author
 
-**[lulouislu](https://github.com/lulouislu)** · [Issues](https://github.com/lulouislu/macnet-lab/issues) · [CI checks](https://github.com/lulouislu/macnet-lab/actions)
+- **协议 / License**：[MIT License](./LICENSE)。使用、修改和再分发时，请保留版权声明及许可文本。 / Released under the MIT License; retain the copyright notice and permission text.
+- **作者 / Author**：**Zhenyu Lu** ([@lulouislu](https://github.com/lulouislu))。
+- **关注方向 / Interests**：Network Engineering, Cross-Platform Infrastructure, Docker Virtualization & AIOps Automation.
 
 欢迎提交脱敏拓扑与复现步骤。 / Contributions with sanitized topologies and reproducible issue reports are welcome.
 
-Released under the **[MIT License](LICENSE)**. Dependencies retain their respective licenses.
+[Issues](https://github.com/lulouislu/lingshu-matrix/issues) · [CI checks](https://github.com/lulouislu/lingshu-matrix/actions)。第三方依赖保留各自许可证。 / Dependencies retain their respective licenses.
+
+<div align="center">
+  <sub>Built with care by Zhenyu Lu.</sub>
+</div>

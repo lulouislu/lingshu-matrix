@@ -21,7 +21,8 @@ if __name__ == "__main__":
         backend = type(keyring.get_keyring())
         assert backend.__module__ == "keyring.backends.Windows" and backend.__name__ == "WinVaultKeyring"
         assert (Path(macnet.__file__).parent / "static/index.html").is_file()
-        print(json.dumps({"tls": ssl.OPENSSL_VERSION, "certificate_verification": True,
+        print(json.dumps({"name": macnet.DISPLAY_NAME, "version": macnet.__version__,
+                          "tls": ssl.OPENSSL_VERSION, "certificate_verification": True,
                           "credential_backend": backend.__module__ + "." + backend.__name__,
                           "frontend": True}))
     else:

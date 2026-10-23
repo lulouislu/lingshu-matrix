@@ -1,4 +1,4 @@
-"""Build and install MacNet Lab in a project-local venv on Windows or macOS."""
+"""Build and install LingShu Matrix in a project-local venv on Windows or macOS."""
 from pathlib import Path
 import shutil
 import subprocess
@@ -27,7 +27,7 @@ def main():
     run([str(python), "-m", "pip", "install", "--upgrade", "pip"])
     run([str(python), "-m", "pip", "install", "."])
     print("Installed. No probes, login tasks, firewall or network settings were changed.")
-    print(r"Start: .\.venv\Scripts\macnet-lab.exe" if sys.platform == "win32" else "Start: .venv/bin/macnet-lab")
+    print(r"Start: .\.venv\Scripts\lingshu-matrix.exe" if sys.platform == "win32" else "Start: .venv/bin/lingshu-matrix")
 
 
 if __name__ == "__main__":

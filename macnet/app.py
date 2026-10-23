@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import __version__
+from . import __version__, DISPLAY_NAME
 from .reports import build_report, markdown_report
 from .models import DiagnosticRequest, Credential, Site, sanitized_export
 from .store import Store, Conflict, uid
@@ -68,7 +68,7 @@ def create_app(directory=None, *, instance_id=None, shutdown=None):
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await task
-    app = FastAPI(title="MacNet Lab", version=__version__, lifespan=lifespan)
+    app = FastAPI(title=DISPLAY_NAME, version=__version__, lifespan=lifespan)
     app.state.store, app.state.engine, app.state.vault = store, engine, vault
 
     def host_allowed(value):
@@ -120,7 +120,8 @@ def create_app(directory=None, *, instance_id=None, shutdown=None):
 
     @app.get("/api/health")
     def health():
-        return {"status": "ok", "version": __version__, "product": "macnet-lab", "instance": instance_id}
+        return {"status": "ok", "version": __version__, "name": DISPLAY_NAME,
+                "product": "macnet-lab", "instance": instance_id}
 
     @app.get("/api/session")
     def session():

@@ -4,8 +4,8 @@
 
 ## 第一次打开
 
-1. 将 ZIP **完整解压**到自己的文件夹，例如 `D:\Tools\MacNetLab`。不要在压缩包内运行，也不要单独移动 `.exe`；旁边的 `_internal` 必须保留。
-2. 双击 `MacNetLab.exe`（或 `Start-MacNetLab.cmd`）。无需安装 Python、Node.js，无需管理员权限。
+1. 将 ZIP **完整解压**到自己的文件夹，例如 `D:\Tools\LingShuMatrix`。不要在压缩包内运行，也不要单独移动 `.exe`；旁边的 `_internal` 必须保留。
+2. 双击 `LingShuMatrix.exe`（或 `Start-LingShuMatrix.cmd`）。无需安装 Python、Node.js，无需管理员权限。
 3. 等待启动窗口显示地址，浏览器会打开 [本地工作台](http://127.0.0.1:8765)。没有自动打开时手动访问该地址。
 4. 示例不会自动探测网络。先描述拓扑，为获授权目标配置检测，再「运行一次」。
 
@@ -13,13 +13,15 @@
 
 重复打开同一数据目录的程序会打开已有工作台，不启动第二个采集器。如果端口被其他程序或不同数据目录的工作台占用，会拒绝启动；不会停止该程序，也不会打开它的页面。升级前先退出旧版本，否则旧版本缺少实例身份时也会提示占用。
 
+旧版兼容入口 `MacNetLab.exe` 与 `Start-MacNetLab.cmd` 仍随包提供；它们打开同一工作台，不创建另一份数据。
+
 ## 数据、更新和卸载
 
 - 默认数据在 `%LOCALAPPDATA%\MacNetLab`，与解压目录分开。沿用旧 Windows 预览创建的数据库时，可能继续使用 `~/Library/Application Support/MacNetLab`，以启动窗口实际显示为准。
 - 若希望数据也放在 D 盘，用终端启动：
 
   ```powershell
-  .\MacNetLab.exe --data-dir "D:\MacNetLabData"
+  .\LingShuMatrix.exe --data-dir "D:\MacNetLabData"
   ```
 
   日后始终使用相同参数；也可为这条命令建立自己的快捷方式。直接双击会回到默认数据目录。
@@ -29,7 +31,7 @@
 
 ## 下载与提示
 
-GitHub 仓库的 **Actions → Checks → 成功运行 → Artifacts → macnet-lab-windows-x64** 提供自动构建产物（下载 Actions 产物需要 GitHub 登录）。解开 Artifact 的外层 ZIP，再解开其中的应用 ZIP。源码页的「Download ZIP」是源码，不是便携程序。
+GitHub 仓库的 **Actions → Checks → 成功运行 → Artifacts → lingshu-matrix-windows-x64** 提供自动构建产物（下载 Actions 产物需要 GitHub 登录）。解开 Artifact 的外层 ZIP，再解开其中的应用 ZIP。源码页的「Download ZIP」是源码，不是便携程序。
 
 开发预览没有代码签名，Windows 或安全软件可能提示未知发布者。只使用可信仓库的成功构建；若被拦截，保留错误信息并反馈，不关闭系统防护。没有自动更新或静默安装。
 
@@ -43,15 +45,15 @@ npm --prefix frontend run build
 python -m pip install ".[windows-build]"
 python scripts/build-windows.py
 # 需空闲的本机 8765 端口；只测试独立临时数据库和本机资源：
-python scripts/smoke-windows.py dist/windows/MacNetLab/MacNetLab.exe
+python scripts/smoke-windows.py dist/windows/LingShuMatrix/LingShuMatrix.exe
 ```
 
-发行包也可执行 `MacNetLab.exe --check-runtime`：检查 TLS 证书校验、Windows 凭据后端加载与内置界面，不读取或写入任何凭据，不启动采集。构建验收还会在移除 Python / Node 的 PATH 下运行独立临时数据库，测试导出、重复启动、退出和重开。
+发行包也可执行 `LingShuMatrix.exe --check-runtime`：检查 TLS 证书校验、Windows 凭据后端加载与内置界面，不读取或写入任何凭据，不启动采集。构建验收还会在移除 Python / Node 的 PATH 下运行独立临时数据库，测试导出、重复启动、退出和重开。
 
 可通过 `--output`、`--work` 指定 D 盘构建输出与中间目录。采用 PyInstaller onedir，不在每次运行时解包整套 Python 到系统临时目录；原理与参数见 [PyInstaller 官方文档](https://pyinstaller.org/en/stable/spec-files.html)。运行程序不需要构建工具；保留所有依赖的许可证。
 
 ## English quick start
 
-Unzip the entire folder on Windows x64 and double-click **MacNetLab.exe**. Keep `_internal` beside it. Python and Node.js are bundled/not required for daily use. Keep the console open; stop via **连接设置 → 常规 → 退出工作台**, or press **Ctrl+C** in that console. Closing the browser does not stop collection.
+Unzip the entire folder on Windows x64 and double-click **LingShuMatrix.exe**. Keep `_internal` beside it. Python and Node.js are bundled/not required for daily use. Keep the console open; stop via **连接设置 → 常规 → 退出工作台**, or press **Ctrl+C** in that console. Closing the browser does not stop collection.
 
-Data defaults to `%LOCALAPPDATA%\MacNetLab` (legacy preview data can retain its original location). Use `MacNetLab.exe --data-dir "D:\MacNetLabData"` for another location and keep that argument on subsequent launches. Quit and back up data before upgrading. A duplicate launch reuses only the same live data directory; occupied ports and mismatched directories fail without terminating anything. This unsigned development preview does not register startup tasks or change firewall/network settings. No in-app AI connection is needed: export Markdown/JSON and share manually.
+Data defaults to `%LOCALAPPDATA%\MacNetLab` (legacy preview data can retain its original location). Use `LingShuMatrix.exe --data-dir "D:\MacNetLabData"` for another location and keep that argument on subsequent launches. Quit and back up data before upgrading. A duplicate launch reuses only the same live data directory; occupied ports and mismatched directories fail without terminating anything. This unsigned development preview does not register startup tasks or change firewall/network settings. No in-app AI connection is needed: export Markdown/JSON and share manually.

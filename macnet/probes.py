@@ -105,7 +105,7 @@ async def direct_http_status(url, interface="", dns_server="", timeout=4):
             await writer.start_tls(ssl.create_default_context(), server_hostname=hostname, ssl_handshake_timeout=timeout)
         protocol = h11.Connection(h11.CLIENT, max_incomplete_event_size=64000)
         authority = hostname if port == (443 if parsed.scheme == "https" else 80) else f"{hostname}:{port}"
-        writer.write(protocol.send(h11.Request(method=b"GET", target=parsed.raw_path, headers=[(b"Host", authority.encode()), (b"Connection", b"close"), (b"User-Agent", b"MacNetLab/0.1")])) + protocol.send(h11.EndOfMessage()))
+        writer.write(protocol.send(h11.Request(method=b"GET", target=parsed.raw_path, headers=[(b"Host", authority.encode()), (b"Connection", b"close"), (b"User-Agent", b"LingShuMatrix/0.1")])) + protocol.send(h11.EndOfMessage()))
         await writer.drain()
         status, size = None, 0
         while True:

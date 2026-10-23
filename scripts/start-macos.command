@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 if [ "$(uname -s)" != Darwin ]; then
-  echo 'MacNet Lab targets macOS.' >&2
+  echo 'LingShu Matrix targets macOS.' >&2
   exit 1
 fi
 if [ ! -x .venv/bin/macnet-lab ]; then

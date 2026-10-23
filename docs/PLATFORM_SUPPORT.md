@@ -1,6 +1,6 @@
 # Windows / macOS：同一套工作台，分别适配系统能力
 
-MacNet Lab 面向现场运维人员，不要求 Mac、不要求双网，也不要求打印机或 Minecraft。Windows 与 macOS 是同等产品目标；项目名称与仓库地址暂保留，已有拓扑、脚本入口和数据继续可用。
+灵枢 · LingShu Matrix 面向现场运维人员，不要求 Mac、不要求双网，也不要求打印机或 Minecraft。Windows 与 macOS 是同等产品目标；项目原名 MacNet Lab；更名后保留已有拓扑、脚本入口、数据目录和系统凭据服务标识。
 
 共同流程：**描述拓扑 → 指定检测位置 → 记录故障证据 → 导出 Markdown / JSON → 用户自行交给 AI**。平台能力一并进入报告的 `current_observation.context.capabilities`，不支持的检测返回未知，不假装采集成功。
 

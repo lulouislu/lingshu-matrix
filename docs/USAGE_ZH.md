@@ -1,4 +1,4 @@
-# MacNet Lab
+# 灵枢 · LingShu Matrix
 
 **让 AI 看懂你的网络，再沿着证据找到问题。**
 
@@ -8,7 +8,7 @@ Windows 笔记本或 MacBook 接一根机房网线、连任意一个 AP，或常
 
 > **v0.1 开发预览**：已有可运行程序、自动化测试和安装脚本。Windows 已有原生适配与正常启动入口；平台实测情况见[能力与验收](PLATFORM_SUPPORT.md)。真实多网卡隔离、Wi-Fi 漫游、外设及 macOS 验收仍待完成。当前没有签名的 `.app` / `.dmg` 安装包。
 
-![MacNet Lab Windows 原生运行中的合成拓扑](windows-workbench.png)
+![灵枢 · LingShu Matrix Windows 原生运行中的合成拓扑](lingshu-windows-workbench.png)
 
 _图为 Windows 原生运行；没有配置真实网络目标，自动监控暂停。_
 
@@ -16,7 +16,7 @@ _图为 Windows 原生运行；没有配置真实网络目标，自动监控暂�
 
 ### Windows 便携版：无需安装开发环境
 
-完整解压 Windows x64 应用 ZIP，双击 `MacNetLab.exe`，保留 `_internal` 文件夹。浏览器就绪后自动打开；关闭网页不停止采集。用「连接设置 → 常规 → 退出工作台」正常退出，或在启动窗口按 `Ctrl+C`。重复打开仅复用同一数据目录的实例；其他端口占用会提示冲突，不接管或停止其他程序。
+完整解压 Windows x64 应用 ZIP，双击 `LingShuMatrix.exe`，保留 `_internal` 文件夹。浏览器就绪后自动打开；关闭网页不停止采集。用「连接设置 → 常规 → 退出工作台」正常退出，或在启动窗口按 `Ctrl+C`。重复打开仅复用同一数据目录的实例；其他端口占用会提示冲突，不接管或停止其他程序。
 
 [便携版下载、数据位置、更新与构建](WINDOWS_PORTABLE.md)。当前为未签名开发预览，不要求 Python、Node.js 或管理员权限。
 
@@ -25,8 +25,8 @@ _图为 Windows 原生运行；没有配置真实网络目标，自动监控暂�
 准备 Python 3.11+、Node.js 22.12+（macOS 12 选 22.x；Node 24 要求 macOS 13.5+）和 Git，然后在终端执行：
 
 ```bash
-git clone https://github.com/lulouislu/macnet-lab.git
-cd macnet-lab
+git clone https://github.com/lulouislu/lingshu-matrix.git
+cd lingshu-matrix
 bash scripts/install-macos.sh
 bash scripts/start-macos.command
 ```
@@ -36,10 +36,10 @@ bash scripts/start-macos.command
 确保终端中的 `python` 是 3.11+，并已安装 Node.js 22.12+ 和 Git：
 
 ```powershell
-git clone https://github.com/lulouislu/macnet-lab.git
-cd macnet-lab
+git clone https://github.com/lulouislu/lingshu-matrix.git
+cd lingshu-matrix
 python scripts/install.py
-.\.venv\Scripts\macnet-lab.exe
+.\.venv\Scripts\lingshu-matrix.exe
 ```
 
 也可用 `py -3 scripts/install.py`。安装后双击 `scripts/start-windows.cmd` 可启动。不需要 `--preview`、管理员权限或修改执行策略。
@@ -68,6 +68,15 @@ python scripts/install.py
 ```
 
 这是当前用户的 LaunchAgent，不是 root 服务。只有用户登录且 Mac 醒着时才能采集；迁移项目目录后需要重新安装登录项。此入口已实现，等待真实 macOS 验收。
+
+## 从 MacNet Lab 升级
+
+灵枢 · LingShu Matrix v0.1.1 沿用原版数据。先退出旧程序并备份完整数据目录，再安装或解压新版本，使用原来的 `--data-dir` 参数启动；不要仅因更名创建或移动数据库。
+
+- 新命令为 `lingshu-matrix`，旧命令 `macnet-lab` 和原有 macOS / Windows 启动脚本继续可用。Python 分发名 `macnet-lab` 与导入路径 `macnet` 保留兼容。
+- 新便携包使用 `LingShuMatrix.exe`，同目录保留 `MacNetLab.exe` 兼容入口；请将自己的快捷方式指向新版解压目录，保留原数据目录参数。
+- 默认目录仍为 Windows 的 `%LOCALAPPDATA%\MacNetLab` 或 macOS 的 `~/Library/Application Support/MacNetLab`；`MACNET_DATA_DIR`、系统凭据服务名 `MacNetLab`、已安装的 LaunchAgent 标识不变，无需重新录入凭据。
+- 诊断 JSON 仍使用 `macnet.diagnostic-report` v1，拓扑 ID、HTTP 会话协议和数据库结构不变；新报告的 `application.name` 使用新名称。原有拓扑仍可导入，历史诊断报告无需改写。
 
 ## 用拓扑说明环境，不让 AI 猜接线
 
@@ -175,7 +184,7 @@ Linux 等其他系统仍需显式 `--preview`，仅验证通用能力，不模�
 
 生产前端输出到 `macnet/static`，不提交生成文件。发布 Python 包前必须先构建前端。`python -m build` 打包的 wheel 包含已构建界面，源码仓库直接 `pip install .` 而未构建前端时会提示 503。
 
-提交会触发 macOS / Linux / Windows CI；CI 结果看 [Actions](https://github.com/lulouislu/macnet-lab/actions)，不把配置了 CI 当作已通过真实设备验收。
+提交会触发 macOS / Linux / Windows CI；CI 结果看 [Actions](https://github.com/lulouislu/lingshu-matrix/actions)，不把配置了 CI 当作已通过真实设备验收。
 
 ## 接下来完成什么
 
