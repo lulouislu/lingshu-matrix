@@ -48,6 +48,7 @@ import {
   Image,
   HelpCircle,
   Maximize,
+  Power,
 } from "@lucide/vue";
 import { toPng } from "html-to-image";
 import DeviceNode from "./DeviceNode.vue";
@@ -112,6 +113,8 @@ const reportNotes = ref({
 });
 const diagnostic = ref<{ report: any; markdown: string } | null>(null);
 const reportPreview = ref(false);
+const quitPrompt = ref(false),
+  stopped = ref(false);
 watch(
   [reportNotes, selectedIncident],
   () => {
@@ -562,6 +565,22 @@ function live() {
     reconnect = setTimeout(live, 5000);
   };
 }
+function stopLive() {
+  clearInterval(timer);
+  if (reconnect) clearTimeout(reconnect);
+  if (socket) {
+    socket.onclose = null;
+    socket.close();
+  }
+}
+async function quitApp() {
+  await guarded(async () => {
+    await api("/shutdown", {});
+    stopped.value = true;
+    dirty.value = false;
+    stopLive();
+  });
+}
 onMounted(async () => {
   try {
     await api("/session");
@@ -574,12 +593,7 @@ onMounted(async () => {
   }
 });
 onBeforeUnmount(() => {
-  clearInterval(timer);
-  if (reconnect) clearTimeout(reconnect);
-  if (socket) {
-    socket.onclose = null;
-    socket.close();
-  }
+  stopLive();
 });
 window.addEventListener("beforeunload", (e) => {
   if (dirty.value) {
@@ -1375,7 +1389,18 @@ window.addEventListener("beforeunload", (e) => {
                 <p class="muted">
                   诊断报告在本机生成，在「诊断导出」下载后自行分享；无需配置
                   AI。
-                </p></template
+                </p>
+                <button
+                  v-if="state.context.platform === 'win32'"
+                  class="button"
+                  :disabled="busy"
+                  @click="quitPrompt = true"
+                >
+                  <Power :size="15" />退出工作台
+                </button>
+                <p v-if="state.context.platform === 'win32'" class="muted">
+                  关闭网页不会停止程序；退出工作台会停止本机采集。
+                </p> </template
               ><template v-else-if="settingsTab === 'credentials'"
                 ><div class="tip">
                   当前设备：{{ device?.label || "请先在画布选择设备" }}
@@ -1668,6 +1693,41 @@ window.addEventListener("beforeunload", (e) => {
           预览仅显示前 30,000 字符；下载文件包含本次报告全部记录。
         </p>
         <pre>{{ diagnostic.markdown.slice(0, 30000) }}</pre>
+      </section>
+    </div>
+    <div
+      v-if="quitPrompt"
+      class="modal-backdrop"
+      @click.self="!stopped && (quitPrompt = false)"
+    >
+      <section
+        class="modal quit-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="退出工作台"
+      >
+        <header>
+          <h2>{{ stopped ? "工作台已停止" : "退出工作台？" }}</h2>
+        </header>
+        <p v-if="stopped">
+          采集已停止，可以关闭页面。重新打开程序后，已保存的数据仍可使用。
+        </p>
+        <template v-else>
+          <p>
+            退出会停止本机工作台和采集，已保存的站点和记录将保留。
+          </p>
+          <p v-if="dirty">
+            有未保存的拓扑修改。可取消并保存，或放弃修改后退出。
+          </p>
+          <div class="evidence-actions">
+            <button class="button" :disabled="busy" @click="quitPrompt = false">
+              取消
+            </button>
+            <button class="button primary" :disabled="busy" @click="quitApp">
+              {{ dirty ? "放弃修改并退出" : "确认退出" }}
+            </button>
+          </div>
+        </template>
       </section>
     </div>
     <div v-if="evidence" class="modal-backdrop" @click.self="evidence = null">

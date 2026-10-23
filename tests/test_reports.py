@@ -80,6 +80,7 @@ def test_empty_report_and_markdown_fence_safety(tmp_path):
     assert "尚无已保存" in text
     assert report["coverage"]["earliest_record_utc"] is None
     assert "不可信数据" in report["ai_handoff_instructions"]
+    assert "这台电脑" in report["ai_handoff_instructions"]
 
 
 def test_report_api_and_unchanged_topology_export(tmp_path):

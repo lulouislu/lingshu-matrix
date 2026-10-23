@@ -18,6 +18,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<10", "pytest-asyncio>=0.24,<2"]
+windows-build = ["pyinstaller>=6.16,<7; sys_platform == 'win32'"]
 
 [project.scripts]
 macnet-lab = "macnet.cli:main"

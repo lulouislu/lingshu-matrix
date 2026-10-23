@@ -1234,6 +1234,14 @@ code {
 .modal.wide {
   width: 850px;
 }
+.quit-dialog p {
+  font-size: 14px;
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+.quit-dialog .button {
+  font-size: 13px;
+}
 .modal header {
   display: flex;
   align-items: center;

@@ -19,7 +19,7 @@ MacNet Lab 面向现场运维人员，不要求 Mac、不要求双网，也不�
 | SSH 固定命令组                          | 共用 AsyncSSH；系统管理路径，不支持接口绑定                                                          | 同左                                    |
 | 凭据                                    | keyring 的 Windows Credential Manager 后端；不降级明文                                               | keyring 的 macOS Keychain 后端          |
 | 登录后常驻                              | 暂无自动注册入口，前台运行                                                                           | 可选用户 LaunchAgent；仍待 Mac 实机验收 |
-| 原生发行包                              | 暂无独立 `.exe` / `.msi` 安装包，使用源码安装生成的项目内启动器                                      | 暂无签名 / 公证 `.app` / `.dmg`         |
+| 原生发行包                              | Windows x64 便携 ZIP（内含 `.exe` 与运行依赖），无需安装 Python / Node；未签名；暂无 `.msi`          | 暂无签名 / 公证 `.app` / `.dmg`         |
 
 Wi-Fi 读取受连接状态、驱动和系统隐私权限影响；权限不足时保留未知，不自动修改位置权限，也不把质量百分比冒充 RSSI。IPv6 地址可展示，IPv6 主动探测尚未实现。
 
@@ -32,6 +32,8 @@ Windows 的实现依据：[IPv4 socket 选项](https://learn.microsoft.com/en-us
 目标环境为 Windows 10/11 与 macOS（包括用户的 12.7.6 兼容性目标）。实际依赖版本须匹配系统，macOS 12 构建前端使用 Node 22.x，至少 22.12。Linux 只做通用测试与显式开发预览。
 
 本次 Windows 11 实测已取得：物理有线/WLAN/虚拟网卡分类、接口索引、接口级网关与 DNS、Spooler 状态和打印机枚举。原生 socket 的出站索引读回正确；回环上的指定接口 TCP/HTTP、UDP 传输通过。无线接口未连接且当前无线关联查询返回权限受限，因此未验证真实 SSID/BSSID、漫游或信号变化；没有 USB 打印机，不以空列表当作 USB 硬件通过。
+
+[Windows 便携版](WINDOWS_PORTABLE.md)独立验收覆盖解压包启动、界面静态资源、本机资源检测、Markdown / JSON 导出、重复启动、不同数据目录拒绝、正常退出及重开保留数据。Windows 10 与 ARM64 尚未实机验证；当前包只面向 x64。
 
 这些结果不替代以下硬件门槛：
 

@@ -76,6 +76,14 @@ flowchart LR
 
 ### 🛠️ 快速开始
 
+#### Windows x64 便携版（无需 Python / Node）
+
+从 [Checks 的成功运行](https://github.com/lulouislu/macnet-lab/actions/workflows/checks.yml) 下载 `macnet-lab-windows-x64` Artifact，解开外层产物 ZIP 和其中的应用 ZIP，保留完整文件夹，双击 **`MacNetLab.exe`**。浏览器自动打开工作台；保持启动窗口运行，在「连接设置 → 常规 → 退出工作台」确认退出，或按 `Ctrl+C` 停止。
+
+这是未签名的开发预览，默认数据在 `%LOCALAPPDATA%\MacNetLab`，旧预览数据位置可能沿用。不自动安装、不注册启动项、不接入 AI。[便携版说明、数据迁移与构建](docs/WINDOWS_PORTABLE.md)。下载 Actions 产物需 GitHub 登录；源码的「Download ZIP」不是应用包。
+
+#### 从源码安装
+
 准备 **Windows 或 macOS、Python 3.11+、Node.js 22.12+（macOS 12 使用 22.x；Node 24 需 macOS 13.5+）和 Git**：
 
 #### macOS
@@ -102,7 +110,7 @@ Python 命令须指向已安装的 3.11+，也可用 `py -3` 替换 `python`。�
 
 选择设备 → 添加检测 → **运行一次** → 查看结果。需要持续采集时，再启用检测、保存并点击 **开始监控**。电脑休眠、退出登录或程序停止时，采集也会中断。
 
-登录常驻、开发预览、备份、接口 DNS 配置与详细限制见 **[使用手册](docs/USAGE_ZH.md)**。当前仍从源码安装，不提供 Docker Compose、独立 Windows 安装包或签名的 `.app` / `.dmg`。
+登录常驻、开发预览、备份、接口 DNS 配置与详细限制见 **[使用手册](docs/USAGE_ZH.md)**。Windows 已有 x64 便携构建；暂不提供 `.msi` 安装器、Docker Compose 或签名的 `.app` / `.dmg`。
 
 ### 📄 导出文件，自己选择 AI
 
@@ -125,6 +133,7 @@ Python 命令须指向已安装的 3.11+，也可用 `py -3` 替换 `python`。�
 - [x] 打印 / USB、Minecraft、KWRT / Nikki 的限定只读采集适配。
 - [x] 问题日记、完整保留范围的诊断 JSON、脱敏预览和可复制的 AI 排查说明。
 - [x] Windows 原生网卡配置、Wi-Fi / 打印适配、IPv4 socket 接口绑定、安装和正常启动入口。
+- [x] Windows x64 便携 ZIP、启动就绪后打开浏览器、重复启动识别、正常退出与持久化重开。
 - [ ] Windows / macOS 的单 AC 多 AP、双接口不串路、Wi-Fi 漫游、外设和休眠恢复实机验收。
 - [ ] 历史趋势图、IPv6 主动探测、控制器深度指标与受限 Minecraft 日志。
 - [ ] 参数化受控修复、设备端 watchdog、回滚验证与审计。
@@ -178,6 +187,14 @@ The diagram above follows the actual implementation:
 
 ### 🛠️ Quick start
 
+#### Windows x64 portable build (no Python / Node installation)
+
+Download the `macnet-lab-windows-x64` Artifact from a [successful Checks run](https://github.com/lulouislu/macnet-lab/actions/workflows/checks.yml), extract the artifact ZIP and its application ZIP, and double-click **`MacNetLab.exe`** with the entire folder intact. Keep the console open. Stop via **连接设置 → 常规 → 退出工作台**, or press `Ctrl+C` in the console.
+
+This is an unsigned development preview. Data defaults to `%LOCALAPPDATA%\MacNetLab` (legacy preview data can retain its old location). No installer, startup registration or in-app AI connection is required. [Portable usage and build instructions](docs/WINDOWS_PORTABLE.md). GitHub sign-in is required for Actions artifact downloads; the source-code ZIP is not the application.
+
+#### Source installation
+
 Requirements: **Windows or macOS, Python 3.11+, Node.js 22.12+ (use 22.x on macOS 12; Node 24 requires macOS 13.5+), and Git**.
 
 #### macOS
@@ -204,7 +221,7 @@ Open **[http://127.0.0.1:8765](http://127.0.0.1:8765)**. Example sites do not en
 
 Select a device, add a check, and choose **Run once**. To collect continuously, enable the desired checks, save the site, then start monitoring. Collection stops when the computer sleeps, the user logs out or the application exits.
 
-The **[Chinese usage guide](docs/USAGE_ZH.md)** covers optional login startup, development previews, backups and interface-specific DNS. Installation is source-based; standalone Windows installers, signed macOS packages and Docker Compose are not yet provided.
+The **[Chinese usage guide](docs/USAGE_ZH.md)** covers optional login startup, development previews, backups and interface-specific DNS. A Windows x64 portable build is available; MSI installers, signed macOS packages and Docker Compose are not yet provided.
 
 <a id="reports-en"></a>
 
@@ -233,6 +250,7 @@ Active probes focus on IPv4. Bound hostname checks require an explicit IPv4 DNS 
 - [x] Bounded read-only adapters for printing/USB, Minecraft and KWRT/Nikki.
 - [x] Markdown problem diaries, complete retained-record JSON, redaction preview and copyable AI handoff instructions.
 - [x] Native Windows network configuration, Wi-Fi/printing adapters, IPv4 socket binding, installation and normal startup.
+- [x] Windows x64 portable ZIP, ready-before-browser launch, duplicate-instance recognition, graceful exit and persisted restart.
 - [ ] Physical Windows/macOS acceptance: AC/AP sites, independent network paths, roaming, peripherals and sleep/resume.
 - [ ] History charts, active IPv6 probes, controller-specific metrics and limited Minecraft logs.
 - [ ] Parameterized remediation, device-side watchdogs, rollback verification and audit trails.

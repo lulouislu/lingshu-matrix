@@ -11,7 +11,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import asyncssh
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -52,7 +52,7 @@ class Retention(BaseModel):
     days: int = Field(ge=1, le=30)
 
 
-def create_app(directory=None):
+def create_app(directory=None, *, instance_id=None, shutdown=None):
     store = Store(Path(directory) if directory else default_directory())
     vault = Vault()
     ssh = SSH(store.directory, vault)
@@ -120,13 +120,20 @@ def create_app(directory=None):
 
     @app.get("/api/health")
     def health():
-        return {"status": "ok", "version": __version__}
+        return {"status": "ok", "version": __version__, "product": "macnet-lab", "instance": instance_id}
 
     @app.get("/api/session")
     def session():
         response = JSONResponse({"version": __version__})
         response.set_cookie("macnet_session", token, httponly=True, samesite="strict", max_age=86400)
         return response
+
+    @app.post("/api/shutdown")
+    def shutdown_app(tasks: BackgroundTasks):
+        if shutdown is None:
+            raise HTTPException(409, "此运行方式由外部服务管理，请在原终端或服务管理器停止")
+        tasks.add_task(shutdown)
+        return {"ok": True}
 
     @app.get("/api/state")
     def state():

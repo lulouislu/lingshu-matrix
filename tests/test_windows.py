@@ -150,17 +150,13 @@ def test_windows_and_legacy_data_directory_selection(tmp_path, monkeypatch):
 
 def test_windows_cli_is_a_normal_supported_entry_point(tmp_path, monkeypatch):
     from macnet import cli
-    import macnet.app
-    import uvicorn
-    run = Mock()
+    run = Mock(return_value=0)
     monkeypatch.setattr(cli.sys, "platform", "win32")
     monkeypatch.setattr(cli.sys, "argv", ["macnet-lab", "--no-browser", "--data-dir", str(tmp_path)])
     monkeypatch.setenv("MACNET_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(macnet.app, "create_app", lambda: "app-fixture")
-    monkeypatch.setattr(uvicorn, "run", run)
-    cli.main()
-    assert run.call_args.args == ("app-fixture",)
-    assert run.call_args.kwargs["host"] == "127.0.0.1"
+    monkeypatch.setattr(cli, "run", run)
+    assert cli.main() == 0
+    assert run.call_args.args == (tmp_path, True)
 
 
 def test_installer_preserves_project_local_scope(monkeypatch):
