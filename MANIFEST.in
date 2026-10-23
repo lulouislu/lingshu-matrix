@@ -1,0 +1,7 @@
+include README.md LICENSE
+recursive-include scripts *.sh *.command *.py
+recursive-include docs *.md *.png
+include frontend/package.json frontend/package-lock.json frontend/index.html frontend/tsconfig.json frontend/vite.config.ts
+recursive-include frontend/src *.vue *.ts *.css
+recursive-include macnet/static *
+global-exclude __pycache__ *.py[cod]
