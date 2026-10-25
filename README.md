@@ -48,6 +48,8 @@ _Windows 运行的合成拓扑；没有配置真实网络目标，自动监控�
 
 ### ✨ 核心特性
 
+**v0.1.2 界面更新**：深色三栏工作台、可搜索的型号预设与通用设备库、无限拓扑画布、缩略导航和可展开的检测日志。所有状态与指标接入真实采集；原有站点和离线诊断导出继续可用。
+
 | 模块              | 当前能力                                                                                                                                |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | 🧩 拓扑工作台     | 拖拽设备、接口级连线、多站点、JSON 导入导出、PNG 与浏览器打印；区分有线、Wi-Fi、USB、管理关系和服务依赖                                 |
@@ -177,6 +179,8 @@ A successful ping rarely tells the whole story. Which AP is the MacBook connecte
 > **Status: v0.1 development preview. Windows and macOS are equal product targets.** Native Windows adapters and normal startup are implemented; Linux remains a generic test/preview platform. See the [platform matrix](docs/PLATFORM_SUPPORT.md) for validated behavior, unavailable features and outstanding hardware acceptance.
 
 ### ✨ Key features
+
+**v0.1.2 workspace update**: a dark three-pane interface with searchable hardware presets and generic blocks, an infinite canvas, a minimap and an expandable evidence console. Status and metrics use actual observations; existing sites and offline diagnostic exports remain compatible.
 
 | Module                    | Available implementation                                                                                                                                                                          |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

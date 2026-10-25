@@ -18,11 +18,11 @@ export const links: Record<string, string> = {
   dependency: "服务依赖",
 };
 export const colors: Record<string, string> = {
-  ethernet: "#647b9a",
-  wifi: "#4e6ff7",
-  usb: "#a17c43",
-  management: "#9ca8b9",
-  dependency: "#9560bf",
+  ethernet: "#22b8b1",
+  wifi: "#818cf8",
+  usb: "#fbbf24",
+  management: "#8299b4",
+  dependency: "#c084fc",
 };
 export const statusNames: Record<Status, string> = {
   healthy: "正常",

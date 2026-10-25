@@ -17,7 +17,6 @@ import {
   type Connection,
 } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
-import { Controls } from "@vue-flow/controls";
 import {
   Activity,
   Network,
@@ -49,9 +48,21 @@ import {
   HelpCircle,
   Maximize,
   Power,
+  LayoutGrid,
+  Terminal,
+  ZoomIn,
+  ZoomOut,
+  Box as PackageIcon,
 } from "@lucide/vue";
 import { toPng } from "html-to-image";
 import DeviceNode from "./DeviceNode.vue";
+import MatrixMap from "./MatrixMap.vue";
+import { hardwarePresets } from "./library";
+import {
+  evidenceMetrics,
+  deviceEvidence,
+  layeredPositions,
+} from "./presentation";
 import { api, download } from "./api";
 import { version as appVersion } from "../package.json";
 import {
@@ -72,7 +83,8 @@ import type {
   Status,
 } from "./types";
 
-const { screenToFlowCoordinate, fitView } = useVueFlow();
+const { screenToFlowCoordinate, fitView, viewport, zoomIn, zoomOut, zoomTo } =
+  useVueFlow();
 const state = ref<State>({
   sites: [],
   active_site: null,
@@ -92,6 +104,44 @@ const selected = ref(""),
   toast = ref(""),
   busy = ref(false),
   ready = ref(false);
+const librarySearch = ref("");
+const libraryTab = ref("models");
+const presetGroups = computed(() =>
+  [...new Set(hardwarePresets.map((p) => p.group))]
+    .map((label) => ({
+      label,
+      items: hardwarePresets.filter(
+        (p) =>
+          p.group === label &&
+          (p.label + p.model)
+            .toLowerCase()
+            .includes(librarySearch.value.toLowerCase()),
+      ),
+    }))
+    .filter((g) => g.items.length),
+);
+const dockTab = ref("history"),
+  dockOpen = ref(false),
+  libraryOpen = ref(false);
+const libraryGroups = computed(() =>
+  [
+    { label: "网关与无线 / NETWORK", kinds: ["gateway", "switch", "ac", "ap"] },
+    {
+      label: "计算与外设 / ENDPOINTS",
+      kinds: ["computer", "mac", "server", "printer", "device"],
+    },
+  ]
+    .map((g) => ({
+      ...g,
+      kinds: g.kinds.filter((k) =>
+        (kinds[k] + " " + k)
+          .toLowerCase()
+          .includes(librarySearch.value.toLowerCase()),
+      ),
+    }))
+    .filter((g) => g.kinds.length),
+);
+const metrics = computed(() => evidenceMetrics(site.value, state.value.latest));
 const linkKind = ref("ethernet"),
   selectedEdge = ref(""),
   templateMenu = ref(false);
@@ -188,11 +238,13 @@ function renderGraph() {
   nodes.value = site.value.devices.map((d) => ({
     id: d.id,
     type: "device",
+    selected: d.id === selected.value,
     position: { ...d.position },
     data: {
       device: d,
       status: deviceStatus(site.value!, d.id, state.value.latest),
       editing: editing.value,
+      evidence: deviceEvidence(site.value!, d, state.value.latest),
     },
   }));
   edges.value = site.value.links.map((e) => ({
@@ -201,7 +253,7 @@ function renderGraph() {
     target: e.target,
     sourceHandle: e.source_interface ? e.source_interface + ":out" : undefined,
     targetHandle: e.target_interface ? e.target_interface + ":in" : undefined,
-    type: "smoothstep",
+    type: "default",
     label: e.label || links[e.kind],
     style: {
       stroke: colors[e.kind],
@@ -210,6 +262,7 @@ function renderGraph() {
         e.kind === "wifi" ? "6 4" : e.kind === "management" ? "3 5" : undefined,
     },
     labelStyle: { fill: colors[e.kind], fontSize: 11 },
+    labelBgStyle: { fill: "#0b1220", fillOpacity: 0.95 },
     data: { kind: e.kind },
   }));
 }
@@ -254,6 +307,11 @@ async function refresh() {
       data: {
         ...n.data,
         status: deviceStatus(site.value!, n.id, incoming.latest),
+        evidence: deviceEvidence(
+          site.value!,
+          site.value!.devices.find((d) => d.id === n.id)!,
+          incoming.latest,
+        ),
       },
     }));
   if (site.value) {
@@ -299,8 +357,18 @@ async function toggleMonitor() {
     await refresh();
   });
 }
-function addDevice(kind: string, position?: { x: number; y: number }) {
-  if (!site.value) return;
+function addDevice(
+  kind: string,
+  position?: { x: number; y: number },
+  presetId?: string,
+) {
+  if (!site.value) {
+    notify("请先创建或选择站点");
+    return;
+  }
+  const clicked = !position;
+  editing.value = true;
+  libraryOpen.value = false;
   if (!position) {
     let slot = site.value.devices.length;
     do {
@@ -318,15 +386,43 @@ function addDevice(kind: string, position?: { x: number; y: number }) {
     );
   }
   const d = newDevice(kind, position.x, position.y);
+  const preset = hardwarePresets.find((p) => p.id === presetId);
+  if (preset) {
+    d.label = preset.label;
+    d.notes = "型号 / 用途：" + preset.model;
+  }
   site.value.devices.push(d);
   selected.value = d.id;
   panel.value = "device";
   markDirty();
   renderGraph();
+  if (clicked) nextTick(() => fitView({ padding: 0.15, duration: 200 }));
+}
+async function autoLayout() {
+  if (!site.value) return;
+  editing.value = true;
+  const positions = layeredPositions(site.value.devices);
+  site.value.devices.forEach((d) => {
+    d.position = positions.find((p) => p.id === d.id)!.position;
+  });
+  markDirty();
+  renderGraph();
+  await nextTick();
+  await fitView({ padding: 0.18, duration: 250 });
 }
 function drop(event: DragEvent) {
   event.preventDefault();
-  if (!editing.value) return;
+  const preset = hardwarePresets.find(
+    (p) => p.id === event.dataTransfer?.getData("application/lingshu-preset"),
+  );
+  if (preset) {
+    addDevice(
+      preset.kind,
+      screenToFlowCoordinate({ x: event.clientX, y: event.clientY }),
+      preset.id,
+    );
+    return;
+  }
   const kind = event.dataTransfer?.getData("application/macnet");
   if (kind && kinds[kind])
     addDevice(
@@ -451,7 +547,7 @@ async function exportJSON() {
   await guarded(async () => {
     if (dirty.value) await save();
     const data = await api("/sites/" + site.value!.id + "/export");
-    download("macnet-topology.json", JSON.stringify(data, null, 2));
+    download("lingshu-topology.json", JSON.stringify(data, null, 2));
     toast.value =
       "导出已移除凭据引用并禁用检测；IP、BSSID 和备注仍保留，分享前请检查";
   });
@@ -474,13 +570,15 @@ async function exportPNG() {
     const el = document.querySelector(".vue-flow") as HTMLElement;
     const data = await toPng(el, {
       pixelRatio: 2,
-      backgroundColor: "#f5f7fb",
+      backgroundColor: "#070b12",
       filter: (n) =>
-        !(n as HTMLElement).classList?.contains("vue-flow__controls"),
+        !["viewport-controls", "matrix-map"].some((name) =>
+          (n as HTMLElement).classList?.contains(name),
+        ),
     });
     const a = document.createElement("a");
     a.href = data;
-    a.download = "macnet-topology.png";
+    a.download = "lingshu-topology.png";
     a.click();
   });
 }
@@ -503,7 +601,7 @@ function downloadReport(format: "json" | "md") {
   if (!diagnostic.value) return;
   const stamp = diagnostic.value.report.generated_at_utc.replace(/[:.]/g, "-");
   download(
-    "macnet-diagnostic-" + stamp + "." + format,
+    "lingshu-diagnostic-" + stamp + "." + format,
     format === "json"
       ? JSON.stringify(diagnostic.value.report, null, 2)
       : diagnostic.value.markdown,
@@ -606,225 +704,160 @@ window.addEventListener("beforeunload", (e) => {
 
 <template>
   <div class="app-shell">
-    <aside class="sidebar">
-      <a class="brand" href="/" aria-label="灵枢 · LingShu Matrix 首页"
-        ><span class="brand-mark"><Network :size="22" /></span
-        ><span>灵枢<span class="brand-sub">LINGSHU MATRIX</span></span></a
-      >
-      <div class="sidebar-label">工作空间</div>
-      <nav>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="灵枢 · LingShu Matrix 首页">
+        <span class="brand-mark"><Network :size="22" /></span>
+        <span
+          ><strong>LingShu Matrix <em>灵枢矩阵</em></strong
+          ><small>NETWORK OPERATIONS WORKSPACE</small></span
+        >
+        <span class="version">v{{ appVersion }}</span>
+      </a>
+      <div class="workspace-picker">
+        <span
+          class="status-dot"
+          :class="state.monitoring ? 'healthy' : 'paused'"
+        ></span>
+        <select
+          aria-label="选择站点"
+          :value="site?.id || ''"
+          @change="selectSite(($event.target as HTMLSelectElement).value)"
+        >
+          <option value="" disabled>选择工作空间</option>
+          <option v-for="s in state.sites" :key="s.id" :value="s.id">
+            {{ s.name }}
+          </option>
+        </select>
         <button
-          aria-label="拓扑工作台"
-          :class="{ active: panel === 'device' }"
-          @click="panel = 'device'"
+          class="icon-button"
+          aria-label="创建站点"
+          title="创建站点"
+          @click="templateMenu = !templateMenu"
         >
-          <Network :size="18" /><span>拓扑工作台</span></button
-        ><button
-          aria-label="故障黑匣子"
-          :class="{ active: panel === 'incidents' }"
-          @click="panel = 'incidents'"
-        >
-          <Activity :size="18" /><span>故障黑匣子</span
-          ><b v-if="openCount">{{ openCount }}</b></button
-        ><button
-          aria-label="诊断导出"
-          :class="{ active: panel === 'report' }"
-          @click="panel = 'report'"
-        >
-          <FileText :size="18" /><span>诊断导出</span></button
-        ><button
-          aria-label="连接设置"
-          :class="{ active: panel === 'settings' }"
-          @click="panel = 'settings'"
-        >
-          <Settings :size="18" /><span>连接设置</span>
+          <Plus :size="16" />
         </button>
-      </nav>
-      <div class="sidebar-label">当前站点</div>
-      <select
-        aria-label="选择站点"
-        :value="site?.id || ''"
-        @change="selectSite(($event.target as HTMLSelectElement).value)"
-      >
-        <option value="" disabled>选择站点</option>
-        <option v-for="s in state.sites" :key="s.id" :value="s.id">
-          {{ s.name }}
-        </option></select
-      ><button
-        aria-label="创建站点"
-        class="new-site"
-        @click="templateMenu = !templateMenu"
-      >
-        <Plus :size="15" /><span>创建站点</span>
+        <div v-if="templateMenu" class="site-menu">
+          <button @click="makeSite('ac')">AC / 多 AP 示例</button
+          ><button @click="makeSite('home')">家庭实验室示例</button
+          ><button @click="makeSite('empty')">空白站点</button>
+        </div>
+      </div>
+      <div class="header-metrics">
+        <span title="仅代表已配置检测的最近结果"
+          ><small>检测正常</small
+          ><b>{{ metrics.healthy }}/{{ metrics.total }}</b></span
+        >
+        <span
+          ><small>未知</small><b class="muted">{{ metrics.unknown }}</b></span
+        >
+        <span
+          ><small>未恢复事件</small
+          ><b :class="{ danger: openCount }">{{ openCount }}</b></span
+        >
+      </div>
+      <div class="header-actions">
+        <button class="button" :disabled="busy || !site" @click="toggleMonitor">
+          <Pause v-if="state.monitoring" :size="14" /><Play
+            v-else
+            :size="14"
+          />{{ state.monitoring ? "暂停监控" : "开始监控" }}
+        </button>
+        <button
+          class="button"
+          :disabled="!dirty || busy"
+          @click="guarded(save)"
+        >
+          <Save :size="14" />{{ dirty ? "保存修改" : "已保存" }}
+        </button>
+        <button class="button primary" @click="panel = 'report'">
+          <FileText :size="14" />诊断导出
+        </button>
+      </div>
+    </header>
+    <div v-if="state.context.note" class="platform-notice">
+      <Monitor :size="15" />{{ state.context.note }}
+    </div>
+    <div v-if="state.error" class="platform-notice danger" role="alert">
+      采集器异常：{{ state.error }}。请检查数据目录和检测配置。
+    </div>
+    <div v-if="toast" class="toast" role="alert">
+      <span>{{ toast }}</span
+      ><button aria-label="关闭提示" @click="toast = ''">
+        <X :size="16" />
       </button>
-      <div v-if="templateMenu" class="site-menu">
-        <button @click="makeSite('ac')">AC / 多 AP 示例</button
-        ><button @click="makeSite('home')">家庭实验室示例</button
-        ><button @click="makeSite('empty')">空白站点</button>
-      </div>
-      <div class="sidebar-bottom">
-        <span class="local-badge"><ShieldCheck :size="15" /> 本地优先</span>
-        <p>拓扑描述环境<br />证据解释问题</p>
-        <small
-          >v{{ appVersion }} ·
-          {{
-            state.context.platform === "win32"
-              ? "Windows"
-              : state.context.platform === "darwin"
-                ? "macOS"
-                : "跨平台"
-          }}</small
-        >
-      </div>
-    </aside>
-    <div class="workspace">
-      <header class="topbar">
-        <div>
-          <div class="breadcrumb">
-            工作空间 <ChevronRight :size="12" />
-            <span class="site-breadcrumb">{{
-              site?.name || "未选择站点"
-            }}</span>
-            <select
-              class="compact-site-select"
-              aria-label="选择站点"
-              :value="site?.id || ''"
-              @change="selectSite(($event.target as HTMLSelectElement).value)"
-            >
-              <option value="" disabled>选择站点</option>
-              <option v-for="s in state.sites" :key="s.id" :value="s.id">
-                {{ s.name }}
-              </option>
-            </select>
-          </div>
-          <h1>网络运维工作台 <span class="beta-label">LOCAL</span></h1>
+    </div>
+    <div class="matrix-workspace">
+      <aside class="library" :class="{ 'mobile-open': libraryOpen }">
+        <div class="library-heading">
+          <span><PackageIcon :size="15" />硬件积木库</span
+          ><small>点击 / 拖拽</small>
         </div>
-        <div class="header-actions">
+        <div class="library-search">
+          <Search :size="15" /><input
+            v-model="librarySearch"
+            aria-label="搜索设备积木"
+            placeholder="搜索路由器、AP、服务器…"
+          />
+        </div>
+        <div class="library-tabs">
           <button
-            class="button"
-            @click="guarded(refresh)"
-            :disabled="busy"
-            title="刷新状态"
+            :class="{ active: libraryTab === 'models' }"
+            @click="libraryTab = 'models'"
           >
-            <RefreshCw :size="16" /></button
-          ><button class="button" @click="editing = !editing">
-            <Network :size="16" />{{
-              editing ? "结束编辑" : "编辑拓扑"
-            }}</button
+            型号预设</button
           ><button
-            class="button primary"
-            :disabled="!dirty || busy"
-            @click="guarded(save)"
+            :class="{ active: libraryTab === 'generic' }"
+            @click="libraryTab = 'generic'"
           >
-            <Save :size="15" />{{ dirty ? "保存修改" : "已保存" }}
+            通用设备
           </button>
         </div>
-      </header>
-      <div v-if="state.context.note" class="platform-notice">
-        <Monitor :size="15" />{{ state.context.note }}
-      </div>
-      <div v-if="state.error" class="platform-notice danger" role="alert">
-        采集器异常：{{ state.error }}。请检查数据目录和检测配置。
-      </div>
-      <div v-if="toast" class="toast" role="alert">
-        <span>{{ toast }}</span
-        ><button aria-label="关闭提示" @click="toast = ''">
-          <X :size="16" />
-        </button>
-      </div>
-      <div class="summary-strip">
-        <div>
-          <small>拓扑设备</small
-          ><strong>{{ site?.devices.length || 0 }}<span>台</span></strong>
-        </div>
-        <div>
-          <small>当前可用接口</small
-          ><strong>{{ contextUp.length }}<span>个</span></strong>
-        </div>
-        <div>
-          <small>未恢复事件</small
-          ><strong :class="{ danger: openCount }"
-            >{{ openCount }}<span>项</span></strong
-          >
-        </div>
-        <div class="monitor-state">
-          <span
-            class="status-dot"
-            :class="state.monitoring ? 'healthy' : 'paused'"
-          ></span>
-          <div>
-            <small>{{
-              state.monitoring ? "正在采集已启用检测" : "自动监控已暂停"
-            }}</small
-            ><span>{{ enabledCount }} 项检测已启用</span>
-          </div>
-          <button
-            class="button"
-            :class="{ primary: !state.monitoring }"
-            :disabled="busy || !site"
-            @click="toggleMonitor"
-          >
-            <Pause v-if="state.monitoring" :size="14" /><Play
-              v-else
-              :size="14"
-            />{{ state.monitoring ? "暂停" : "开始监控" }}
-          </button>
-        </div>
-      </div>
-      <div class="work-area">
-        <section class="canvas-column">
-          <div class="canvas-toolbar">
-            <div>
-              <span class="section-tag">TOPOLOGY</span
-              ><strong>{{ editing ? "搭建你的网络" : "网络环境地图" }}</strong
-              ><span v-if="dirty" class="unsaved">未保存</span>
-            </div>
-            <div class="canvas-actions">
-              <label v-if="editing"
-                >连线<select v-model="linkKind" aria-label="连线类型">
-                  <option v-for="(label, key) in links" :key="key" :value="key">
-                    {{ label }}
-                  </option>
-                </select></label
-              ><button
-                class="icon-button"
-                title="适应画布"
-                @click="fitView({ padding: 0.18, maxZoom: 1 })"
-              >
-                <Maximize :size="16" />
-              </button>
+        <div class="library-scroll">
+          <template v-if="libraryTab === 'models'">
+            <div
+              v-for="group in presetGroups"
+              :key="group.label"
+              class="library-group"
+            >
+              <h3>{{ group.label }}</h3>
               <button
-                class="icon-button"
-                title="导出拓扑 JSON"
-                @click="exportJSON"
+                v-for="item in group.items"
+                :key="item.id"
+                class="device-block"
+                :disabled="!site"
+                draggable="true"
+                @dragstart="
+                  ($event as DragEvent).dataTransfer?.setData(
+                    'application/lingshu-preset',
+                    item.id,
+                  )
+                "
+                @click="addDevice(item.kind, undefined, item.id)"
               >
-                <Download :size="16" /></button
-              ><label class="icon-button" title="导入拓扑 JSON"
-                ><Upload :size="16" /><input
-                  type="file"
-                  accept=".json"
-                  @change="importJSON" /></label
-              ><button
-                class="icon-button"
-                title="导出拓扑 PNG"
-                @click="exportPNG"
-              >
-                <Image :size="16" /></button
-              ><button
-                class="icon-button"
-                title="打印 / 保存 PDF"
-                @click="printGraph"
-              >
-                <Printer :size="16" />
+                <span class="block-icon"
+                  ><component :is="icons[item.kind]" :size="18" /></span
+                ><span
+                  ><strong>{{ item.label }}</strong
+                  ><small>{{ item.model }}</small></span
+                ><Plus :size="13" />
               </button>
             </div>
-          </div>
-          <div class="canvas-wrap" @drop="drop" @dragover.prevent>
-            <div v-if="editing" class="palette">
-              <span>设备积木</span
-              ><button
-                v-for="(label, kind) in kinds"
+            <p v-if="!presetGroups.length" class="empty-inline">
+              没有匹配的型号
+            </p>
+          </template>
+          <template v-else>
+            <div
+              v-for="group in libraryGroups"
+              :key="group.label"
+              class="library-group"
+            >
+              <h3>{{ group.label }}</h3>
+              <button
+                v-for="kind in group.kinds"
                 :key="kind"
+                class="device-block"
+                :disabled="!site"
                 draggable="true"
                 @dragstart="
                   ($event as DragEvent).dataTransfer?.setData(
@@ -834,655 +867,918 @@ window.addEventListener("beforeunload", (e) => {
                 "
                 @click="addDevice(kind)"
               >
-                <component :is="icons[kind]" :size="16" />{{ label
-                }}<Plus :size="12" />
+                <span class="block-icon"
+                  ><component :is="icons[kind]" :size="18"
+                /></span>
+                <span
+                  ><strong>{{ kinds[kind] }}</strong
+                  ><small>{{
+                    kind === "ap"
+                      ? "上联 + 无线接口"
+                      : ["computer", "mac"].includes(kind)
+                        ? "有线 / Wi-Fi / USB"
+                        : kind === "printer"
+                          ? "USB 外设 · 可编辑接口"
+                          : "自定义地址与检测"
+                  }}</small></span
+                ><Plus :size="13" />
               </button>
-              <p>拖入画布或点击添加<br />从接口圆点拖出连线</p>
             </div>
-            <VueFlow
-              v-model:nodes="nodes"
-              v-model:edges="edges"
-              :nodes-draggable="editing"
-              :nodes-connectable="editing"
-              :delete-key-code="null"
-              :min-zoom="0.25"
-              :max-zoom="2"
-              @nodes-initialized="fitView({ padding: 0.18, maxZoom: 1 })"
-              @connect="connect"
-              @node-click="
-                (e) => {
-                  selected = e.node.id;
-                  panel = 'device';
-                  selectedEdge = '';
-                }
-              "
-              @edge-click="
-                (e) => {
-                  selectedEdge = e.edge.id;
-                }
-              "
-              @node-drag-stop="markDirty"
-              fit-view-on-init
-              ><template #node-device="props"
-                ><DeviceNode v-bind="props" /></template
-              ><Background
-                pattern-color="#cbd3e0"
-                :gap="22"
-                :size="1"
-              /><Controls :show-interactive="false" />
-              <div v-if="!nodes.length" class="canvas-empty">
-                <Network :size="38" />
-                <h2>从一张网络地图开始</h2>
-                <p>创建示例站点，或开启编辑添加你的第一台设备。</p>
-                <button class="button primary" @click="makeSite('ac')">
-                  创建示例
-                </button>
-              </div></VueFlow
-            >
-            <div class="canvas-legend">
-              <span v-for="(label, key) in links" :key="key"
-                ><i :style="{ background: colors[key] }"></i>{{ label }}</span
-              >
-            </div>
+            <p v-if="!libraryGroups.length" class="empty-inline">
+              没有匹配的设备类型
+            </p>
+          </template>
+        </div>
+        <div class="library-help">
+          <Network :size="15" /><strong>无限拓扑画布</strong>
+          <p>拖动空白处平移 · 滚轮缩放<br />开启编辑，从接口圆点拉出连线</p>
+        </div>
+        <div class="library-footer">
+          <ShieldCheck :size="14" /><span>本地优先 · 自行分享诊断文件</span>
+        </div>
+      </aside>
+      <main class="canvas-column">
+        <div class="canvas-toolbar">
+          <div>
             <button
-              v-if="selectedEdge && editing"
-              class="edge-remove button"
-              @click="removeEdge"
+              class="icon-button library-toggle"
+              title="设备积木库"
+              @click="libraryOpen = !libraryOpen"
             >
-              <Trash2 :size="14" />删除选中连线
+              <PackageIcon :size="17" /></button
+            ><span class="section-tag">TOPOLOGY</span
+            ><strong>网络环境地图</strong
+            ><span v-if="dirty" class="unsaved">未保存</span>
+          </div>
+          <div class="canvas-actions">
+            <button
+              class="button"
+              :disabled="!site?.devices.length"
+              @click="autoLayout"
+              title="只调整图形位置，不改变连线"
+            >
+              <LayoutGrid :size="14" />分层排布
+            </button>
+            <button
+              class="button"
+              :class="{ accent: editing }"
+              @click="editing = !editing"
+            >
+              <Network :size="14" />{{ editing ? "结束编辑" : "编辑拓扑" }}
+            </button>
+            <details class="file-menu">
+              <summary class="button">
+                <Download :size="14" /><span>导入 / 导出</span>
+              </summary>
+              <div>
+                <button @click="exportJSON">
+                  <Download :size="14" />导出拓扑 JSON
+                </button>
+                <label
+                  ><Upload :size="14" />导入拓扑 JSON<input
+                    type="file"
+                    accept=".json"
+                    aria-label="导入拓扑 JSON"
+                    @change="importJSON"
+                /></label>
+                <button @click="exportPNG">
+                  <Image :size="14" />导出拓扑 PNG</button
+                ><button @click="printGraph">
+                  <Printer :size="14" />打印 / 保存 PDF
+                </button>
+              </div>
+            </details>
+          </div>
+        </div>
+        <div class="canvas-wrap" @drop="drop" @dragover.prevent>
+          <VueFlow
+            v-model:nodes="nodes"
+            v-model:edges="edges"
+            :nodes-draggable="editing"
+            :nodes-connectable="editing"
+            :delete-key-code="null"
+            :min-zoom="0.25"
+            :max-zoom="2.2"
+            @nodes-initialized="fitView({ padding: 0.18, maxZoom: 1 })"
+            @connect="connect"
+            @node-click="
+              (e) => {
+                selected = e.node.id;
+                panel = 'device';
+                selectedEdge = '';
+              }
+            "
+            @edge-click="
+              (e) => {
+                selectedEdge = e.edge.id;
+              }
+            "
+            @node-drag-stop="markDirty"
+            @node-drag-start="
+              (e) => {
+                selected = e.node.id;
+                panel = 'device';
+                selectedEdge = '';
+              }
+            "
+            fit-view-on-init
+          >
+            <template #node-device="props"
+              ><DeviceNode v-bind="props"
+            /></template>
+            <Background pattern-color="#16404c" :gap="28" :size="1" />
+            <MatrixMap />
+            <div v-if="!nodes.length" class="canvas-empty">
+              <Network :size="42" />
+              <h2>从一张网络地图开始</h2>
+              <p>
+                {{
+                  site
+                    ? "点击或拖入左侧设备积木，搭建你的网络。"
+                    : "创建工作空间，或导入已有拓扑。"
+                }}
+              </p>
+              <button
+                v-if="!site"
+                class="button primary"
+                @click="makeSite('empty')"
+              >
+                创建空白站点
+              </button>
+            </div>
+          </VueFlow>
+          <div class="viewport-controls">
+            <button
+              class="icon-button"
+              aria-label="缩小画布"
+              title="缩小画布"
+              @click="zoomOut()"
+            >
+              <ZoomOut :size="16" />
+            </button>
+            <button
+              class="zoom-value"
+              title="恢复 100% 缩放"
+              @click="zoomTo(1)"
+            >
+              {{ Math.round(viewport.zoom * 100) }}%
+            </button>
+            <button
+              class="icon-button"
+              aria-label="放大画布"
+              title="放大画布"
+              @click="zoomIn()"
+            >
+              <ZoomIn :size="16" />
+            </button>
+            <button
+              class="fit-button"
+              title="适应全部节点"
+              @click="fitView({ padding: 0.15, maxZoom: 1 })"
+            >
+              <Maximize :size="14" />居中复位
             </button>
           </div>
-          <section class="observation">
-            <div class="section-heading">
-              <div>
-                <span class="section-tag">OBSERVATION</span>
-                <h2>当前接入位置</h2>
-              </div>
-              <span class="muted">{{
-                state.context.hostname || "等待识别"
-              }}</span>
+          <div class="canvas-hud">
+            <span
+              class="status-dot"
+              :class="state.monitoring ? 'healthy' : 'paused'"
+            ></span
+            ><strong>{{ site?.name || "未选择站点" }}</strong
+            ><span>{{ state.monitoring ? "监控中" : "监控暂停" }}</span
+            ><code>{{ Math.round(viewport.zoom * 100) }}%</code>
+          </div>
+          <div v-if="editing" class="connection-hud">
+            <Link2 :size="14" /><label
+              >连线<select v-model="linkKind" aria-label="连线类型">
+                <option v-for="(label, key) in links" :key="key" :value="key">
+                  {{ label }}
+                </option>
+              </select></label
+            >
+          </div>
+          <button
+            v-if="selectedEdge && editing"
+            class="edge-remove button danger"
+            @click="removeEdge"
+          >
+            <Trash2 :size="14" />删除选中连线
+          </button>
+          <div class="canvas-legend">
+            <span v-for="(label, key) in links" :key="key"
+              ><i :style="{ background: colors[key] }"></i>{{ label }}</span
+            >
+          </div>
+        </div>
+        <div class="evidence-dock" :class="{ collapsed: !dockOpen }">
+          <div class="dock-heading">
+            <div role="tablist" aria-label="观测记录">
+              <button
+                role="tab"
+                :aria-selected="dockTab === 'history'"
+                :class="{ active: dockTab === 'history' }"
+                @click="
+                  dockTab = 'history';
+                  dockOpen = true;
+                "
+              >
+                <Terminal :size="14" />检测日志
+                <small>{{ history.length }}</small>
+              </button>
+              <button
+                role="tab"
+                :aria-selected="dockTab === 'interfaces'"
+                :class="{ active: dockTab === 'interfaces' }"
+                @click="
+                  dockTab = 'interfaces';
+                  dockOpen = true;
+                "
+              >
+                <Radio :size="14" />接入位置
+                <small>{{ contextUp.length }}</small>
+              </button>
+              <button
+                role="tab"
+                :aria-selected="dockTab === 'events'"
+                :class="{ active: dockTab === 'events' }"
+                @click="
+                  dockTab = 'events';
+                  dockOpen = true;
+                "
+              >
+                <Clock :size="14" />采集事件
+              </button>
             </div>
-            <div class="interface-list">
-              <div v-for="i in contextUp" :key="i.id" class="interface-card">
-                <component
-                  :is="i.kind === 'wifi' ? Radio : Network"
-                  :size="17"
+            <div>
+              <button
+                class="icon-button"
+                title="刷新状态"
+                :disabled="busy"
+                @click="guarded(refresh)"
+              >
+                <RefreshCw :size="14" /></button
+              ><button
+                class="icon-button"
+                :aria-label="dockOpen ? '收起记录' : '展开记录'"
+                @click="dockOpen = !dockOpen"
+              >
+                <ChevronRight
+                  :size="15"
+                  :style="{
+                    transform: dockOpen ? 'rotate(90deg)' : 'rotate(-90deg)',
+                  }"
                 />
+              </button>
+            </div>
+          </div>
+          <div v-show="dockOpen" class="dock-body">
+            <section v-if="dockTab === 'interfaces'" class="observation">
+              <div class="section-heading">
                 <div>
-                  <strong
-                    >{{ i.label }} <code>{{ i.id }}</code></strong
-                  >
-                  <p>
-                    {{
-                      i.addresses.filter((a) => !a.includes(":")).join(" · ") ||
-                      "无 IPv4"
-                    }}
-                    <span v-if="i.route.gateway"
-                      >/ 网关 {{ i.route.gateway }}</span
-                    >
-                  </p>
-                  <p v-if="i.wifi">
-                    {{ i.wifi.ssid || "SSID 未提供" }} ·
-                    {{ i.wifi.rssi_dbm ?? "—" }} dBm ·
-                    {{ i.wifi.bssid || "BSSID 未提供" }}
-                  </p>
-                  <p
-                    v-if="i.wifi?.identity_note || i.wifi?.reason"
-                    class="muted"
-                  >
-                    {{ i.wifi.identity_note || i.wifi.reason }}
-                  </p>
-                  <p v-if="i.wifi">
-                    {{
-                      state.ap_associations.find((a) => a.interface === i.id)
-                        ?.device_id
-                        ? "对应 AP：" +
-                          site?.devices.find(
-                            (d) =>
-                              d.id ===
-                              state.ap_associations.find(
-                                (a) => a.interface === i.id,
-                              )?.device_id,
-                          )?.label
-                        : "尚未与唯一 AP 清单匹配"
-                    }}
-                  </p>
+                  <span class="section-tag">OBSERVATION</span>
+                  <h2>当前接入位置</h2>
                 </div>
-                <span class="pill">{{
-                  i.kind === "wifi" ? "无线" : "有线"
+                <span class="muted">{{
+                  state.context.hostname || "等待识别"
                 }}</span>
               </div>
-              <p v-if="!contextUp.length" class="muted">
-                尚未识别到可用的物理接口。接口不足不会阻止编辑拓扑。
-              </p>
-            </div>
-          </section>
-          <section class="history-panel">
-            <div class="section-heading">
-              <div>
-                <span class="section-tag">EVIDENCE</span>
-                <h2>最近检测</h2>
-              </div>
-              <span class="muted">检测只代表记录中的时间与路径</span>
-            </div>
-            <div v-if="!history.length" class="empty-inline">
-              <Clock :size="20" />
-              <div>
-                <strong>还没有检测记录</strong>
-                <p>选择设备，添加检测后运行一次；示例不会自动探测网络。</p>
-              </div>
-            </div>
-            <table v-else>
-              <thead>
-                <tr>
-                  <th>检测项目</th>
-                  <th>状态</th>
-                  <th>耗时</th>
-                  <th>路径</th>
-                  <th>记录时间</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in history.slice(0, 8)" :key="row.id">
-                  <!-- Each result retains its measured path. -->
-                  <td>
-                    <button class="text-button" @click="sampleView = row">
+              <div class="interface-list">
+                <div v-for="i in contextUp" :key="i.id" class="interface-card">
+                  <component
+                    :is="i.kind === 'wifi' ? Radio : Network"
+                    :size="17"
+                  />
+                  <div>
+                    <strong
+                      >{{ i.label }} <code>{{ i.id }}</code></strong
+                    >
+                    <p>
                       {{
-                        site?.probes.find((p) => p.id === row.probe)?.label ||
-                        row.probe
+                        i.addresses
+                          .filter((a) => !a.includes(":"))
+                          .join(" · ") || "无 IPv4"
                       }}
-                    </button>
-                  </td>
-                  <td>
-                    <span class="result-label" :class="row.status">{{
-                      statusNames[row.status]
-                    }}</span>
-                  </td>
-                  <td class="mono">
-                    {{
-                      row.latency_ms !== null
-                        ? row.latency_ms.toFixed(1) + " ms"
-                        : "—"
-                    }}
-                  </td>
-                  <td class="mono">{{ row.detail.interface || "—" }}</td>
-                  <td class="muted mono">{{ fmtTime(row.at) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </section>
-        </section>
-        <aside class="inspector">
-          <template v-if="panel === 'device'"
-            ><div class="inspector-heading">
-              <span>设备与检测</span><span class="section-tag">INSPECTOR</span>
-            </div>
-            <div v-if="!device" class="inspector-empty">
-              <Search :size="30" />
-              <h3>选择一台设备</h3>
-              <p>查看服务与检测配置，或开启编辑模式搭建网络拓扑。</p>
-              <div class="tip">
-                <HelpCircle :size="16" /><span
-                  >拓扑是你声明的环境。未检测的设备显示未知，不代表离线。</span
-                >
-              </div>
-            </div>
-            <div v-else class="inspector-body">
-              <div class="selected-device">
-                <span class="large-icon"
-                  ><component :is="icons[device.kind]" :size="23"
-                /></span>
-                <div>
-                  <h2>{{ device.label }}</h2>
-                  <p>{{ kinds[device.kind] }}</p>
+                      <span v-if="i.route.gateway"
+                        >/ 网关 {{ i.route.gateway }}</span
+                      >
+                    </p>
+                    <p v-if="i.wifi">
+                      {{ i.wifi.ssid || "SSID 未提供" }} ·
+                      {{ i.wifi.rssi_dbm ?? "—" }} dBm ·
+                      {{ i.wifi.bssid || "BSSID 未提供" }}
+                    </p>
+                    <p
+                      v-if="i.wifi?.identity_note || i.wifi?.reason"
+                      class="muted"
+                    >
+                      {{ i.wifi.identity_note || i.wifi.reason }}
+                    </p>
+                    <p v-if="i.wifi">
+                      {{
+                        state.ap_associations.find((a) => a.interface === i.id)
+                          ?.device_id
+                          ? "对应 AP：" +
+                            site?.devices.find(
+                              (d) =>
+                                d.id ===
+                                state.ap_associations.find(
+                                  (a) => a.interface === i.id,
+                                )?.device_id,
+                            )?.label
+                          : "尚未与唯一 AP 清单匹配"
+                      }}
+                    </p>
+                  </div>
+                  <span class="pill">{{
+                    i.kind === "wifi" ? "无线" : "有线"
+                  }}</span>
                 </div>
-                <span
-                  class="status-dot"
-                  :class="deviceStatus(site!, device.id, state.latest)"
-                ></span>
+                <p v-if="!contextUp.length" class="muted">
+                  尚未识别到可用的物理接口。接口不足不会阻止编辑拓扑。
+                </p>
               </div>
-              <label
-                >设备名称<input
-                  v-model="device.label"
-                  @input="markDirty" /></label
-              ><label
-                >管理地址 / IP<input
-                  v-model="device.host"
-                  placeholder="例如 192.0.2.1"
-                  @input="markDirty" /></label
-              ><label class="check-row"
+            </section>
+            <section v-if="dockTab === 'history'" class="history-panel">
+              <div class="section-heading">
+                <div>
+                  <span class="section-tag">EVIDENCE</span>
+                  <h2>最近检测</h2>
+                </div>
+                <span class="muted">检测只代表记录中的时间与路径</span>
+              </div>
+              <div v-if="!history.length" class="empty-inline">
+                <Clock :size="20" />
+                <div>
+                  <strong>还没有检测记录</strong>
+                  <p>选择设备，添加检测后运行一次；示例不会自动探测网络。</p>
+                </div>
+              </div>
+              <table v-else>
+                <thead>
+                  <tr>
+                    <th>检测项目</th>
+                    <th>状态</th>
+                    <th>耗时</th>
+                    <th>路径</th>
+                    <th>记录时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in history.slice(0, 30)" :key="row.id">
+                    <!-- Each result retains its measured path. -->
+                    <td>
+                      <button class="text-button" @click="sampleView = row">
+                        {{
+                          site?.probes.find((p) => p.id === row.probe)?.label ||
+                          row.probe
+                        }}
+                      </button>
+                    </td>
+                    <td>
+                      <span class="result-label" :class="row.status">{{
+                        statusNames[row.status]
+                      }}</span>
+                    </td>
+                    <td class="mono">
+                      {{
+                        row.latency_ms !== null
+                          ? row.latency_ms.toFixed(1) + " ms"
+                          : "—"
+                      }}
+                    </td>
+                    <td class="mono">{{ row.detail.interface || "—" }}</td>
+                    <td class="muted mono">{{ fmtTime(row.at) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section v-if="dockTab === 'events'" class="event-console">
+              <p v-if="!events.length" class="empty-inline">尚无采集事件</p>
+              <div
+                v-for="event in events.slice(0, 30)"
+                :key="event.id"
+                class="console-row"
+              >
+                <time>{{ fmtTime(event.at) }}</time
+                ><span>{{ event.kind }}</span>
+                <p>{{ event.body.message || JSON.stringify(event.body) }}</p>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+      <aside class="inspector">
+        <nav class="inspector-tabs" aria-label="工具面板">
+          <button
+            aria-label="拓扑工作台"
+            :class="{ active: panel === 'device' }"
+            @click="panel = 'device'"
+          >
+            <Settings :size="14" />节点配置
+          </button>
+          <button
+            aria-label="故障黑匣子"
+            :class="{ active: panel === 'incidents' }"
+            @click="panel = 'incidents'"
+          >
+            <Activity :size="14" />故障黑匣子
+            <b v-if="openCount">{{ openCount }}</b>
+          </button>
+          <button
+            aria-label="诊断导出"
+            :class="{ active: panel === 'report' }"
+            @click="panel = 'report'"
+          >
+            <FileText :size="14" />诊断导出
+          </button>
+          <button
+            aria-label="连接设置"
+            :class="{ active: panel === 'settings' }"
+            @click="panel = 'settings'"
+          >
+            <ShieldCheck :size="14" />连接设置
+          </button>
+        </nav>
+        <template v-if="panel === 'device'"
+          ><div class="inspector-heading">
+            <span>设备与检测</span><span class="section-tag">INSPECTOR</span>
+          </div>
+          <div v-if="!device" class="inspector-empty">
+            <Search :size="30" />
+            <h3>选择一台设备</h3>
+            <p>查看服务与检测配置，或开启编辑模式搭建网络拓扑。</p>
+            <div class="tip">
+              <HelpCircle :size="16" /><span
+                >拓扑是你声明的环境。未检测的设备显示未知，不代表离线。</span
+              >
+            </div>
+          </div>
+          <div v-else class="inspector-body">
+            <div class="selected-device">
+              <span class="large-icon"
+                ><component :is="icons[device.kind]" :size="23"
+              /></span>
+              <div>
+                <h2>{{ device.label }}</h2>
+                <p>{{ kinds[device.kind] }}</p>
+              </div>
+              <span
+                class="status-dot"
+                :class="deviceStatus(site!, device.id, state.latest)"
+              ></span>
+            </div>
+            <label
+              >设备名称<input
+                v-model="device.label"
+                @input="markDirty" /></label
+            ><label
+              >管理地址 / IP<input
+                v-model="device.host"
+                placeholder="例如 192.0.2.1"
+                @input="markDirty" /></label
+            ><label class="check-row"
+              ><input
+                type="checkbox"
+                v-model="device.local"
+                @change="markDirty"
+              />这是运行工作台的本机电脑</label
+            ><label
+              >设备上运行的服务<input
+                :value="device.services.join(', ')"
+                placeholder="如 Nikki, Minecraft, 打印共享"
+                @change="
+                  device.services = ($event.target as HTMLInputElement).value
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                  markDirty();
+                "
+            /></label>
+            <details class="details">
+              <summary>
+                接口与 AP 标识 <span>{{ device.interfaces.length }}</span>
+              </summary>
+              <div
+                v-for="port in device.interfaces"
+                :key="port.id"
+                class="port-editor"
+              >
+                <strong>{{ port.id }}</strong
                 ><input
-                  type="checkbox"
-                  v-model="device.local"
-                  @change="markDirty"
-                />这是运行工作台的本机电脑</label
-              ><label
-                >设备上运行的服务<input
-                  :value="device.services.join(', ')"
-                  placeholder="如 Nikki, Minecraft, 打印共享"
+                  v-model="port.label"
+                  placeholder="接口名称"
+                  @input="markDirty"
+                /><select v-model="port.kind" @change="markDirty">
+                  <option value="ethernet">有线</option>
+                  <option value="wifi">Wi-Fi</option>
+                  <option value="usb">USB</option>
+                  <option value="logical">逻辑</option></select
+                ><input
+                  v-model="port.address"
+                  placeholder="IP / 网段（选填）"
+                  @input="markDirty"
+                /><input
+                  v-if="port.kind === 'wifi'"
+                  :value="port.bssids.join(', ')"
+                  placeholder="BSSID，多个用逗号分隔"
                   @change="
-                    device.services = ($event.target as HTMLInputElement).value
+                    port.bssids = ($event.target as HTMLInputElement).value
                       .split(',')
                       .map((s) => s.trim())
                       .filter(Boolean);
                     markDirty();
                   "
-              /></label>
-              <details class="details">
-                <summary>
-                  接口与 AP 标识 <span>{{ device.interfaces.length }}</span>
-                </summary>
-                <div
-                  v-for="port in device.interfaces"
-                  :key="port.id"
-                  class="port-editor"
+                />
+              </div>
+              <button class="text-button" @click="addPort">
+                <Plus :size="14" />添加接口
+              </button>
+            </details>
+            <details class="details">
+              <summary>SSH 与设备备注</summary>
+              <label
+                >SSH 用户<input
+                  v-model="device.ssh_user"
+                  @input="markDirty" /></label
+              ><label
+                >SSH 端口<input
+                  type="number"
+                  v-model.number="device.ssh_port"
+                  @input="markDirty" /></label
+              ><label
+                >备注<textarea
+                  v-model="device.notes"
+                  rows="3"
+                  @input="markDirty"
+                /></label
+              ><button
+                class="text-button"
+                @click="
+                  panel = 'settings';
+                  settingsTab = 'credentials';
+                "
+              >
+                配置系统钥匙串凭据 <ArrowUpRight :size="14" />
+              </button>
+            </details>
+            <div class="subheading">
+              <h3>检测项目</h3>
+              <button class="text-button" @click="editProbe()">
+                <Plus :size="14" />添加
+              </button>
+            </div>
+            <div v-for="p in deviceProbes" :key="p.id" class="probe-card">
+              <div>
+                <span
+                  class="status-dot"
+                  :class="latest(p.id)?.status || 'unknown'"
+                ></span
+                ><strong>{{ p.label }}</strong
+                ><button class="text-button" @click="editProbe(p)">编辑</button>
+              </div>
+              <p>
+                {{ p.kind }} · {{ p.interface || "系统默认路径" }} ·
+                {{ p.interval }}s
+              </p>
+              <p v-if="latest(p.id)" class="probe-message">
+                {{ latest(p.id)?.message }}
+              </p>
+              <footer>
+                <button
+                  v-if="latest(p.id)"
+                  class="text-button"
+                  @click="sampleView = latest(p.id)!"
                 >
-                  <strong>{{ port.id }}</strong
+                  结果详情</button
+                ><label class="check-row"
                   ><input
-                    v-model="port.label"
-                    placeholder="接口名称"
-                    @input="markDirty"
-                  /><select v-model="port.kind" @change="markDirty">
-                    <option value="ethernet">有线</option>
-                    <option value="wifi">Wi-Fi</option>
-                    <option value="usb">USB</option>
-                    <option value="logical">逻辑</option></select
-                  ><input
-                    v-model="port.address"
-                    placeholder="IP / 网段（选填）"
-                    @input="markDirty"
-                  /><input
-                    v-if="port.kind === 'wifi'"
-                    :value="port.bssids.join(', ')"
-                    placeholder="BSSID，多个用逗号分隔"
-                    @change="
-                      port.bssids = ($event.target as HTMLInputElement).value
-                        .split(',')
-                        .map((s) => s.trim())
-                        .filter(Boolean);
-                      markDirty();
-                    "
-                  />
-                </div>
-                <button class="text-button" @click="addPort">
-                  <Plus :size="14" />添加接口
-                </button>
-              </details>
-              <details class="details">
-                <summary>SSH 与设备备注</summary>
-                <label
-                  >SSH 用户<input
-                    v-model="device.ssh_user"
-                    @input="markDirty" /></label
-                ><label
-                  >SSH 端口<input
-                    type="number"
-                    v-model.number="device.ssh_port"
-                    @input="markDirty" /></label
-                ><label
-                  >备注<textarea
-                    v-model="device.notes"
-                    rows="3"
-                    @input="markDirty"
-                  /></label
+                    type="checkbox"
+                    v-model="p.enabled"
+                    @change="markDirty"
+                  />自动检测</label
                 ><button
                   class="text-button"
-                  @click="
-                    panel = 'settings';
-                    settingsTab = 'credentials';
-                  "
+                  :disabled="busy"
+                  @click="runProbe(p)"
                 >
-                  配置系统钥匙串凭据 <ArrowUpRight :size="14" />
+                  <Play :size="12" />运行一次
                 </button>
-              </details>
-              <div class="subheading">
-                <h3>检测项目</h3>
-                <button class="text-button" @click="editProbe()">
-                  <Plus :size="14" />添加
-                </button>
-              </div>
-              <div v-for="p in deviceProbes" :key="p.id" class="probe-card">
-                <div>
-                  <span
-                    class="status-dot"
-                    :class="latest(p.id)?.status || 'unknown'"
-                  ></span
-                  ><strong>{{ p.label }}</strong
-                  ><button class="text-button" @click="editProbe(p)">
-                    编辑
-                  </button>
-                </div>
-                <p>
-                  {{ p.kind }} · {{ p.interface || "系统默认路径" }} ·
-                  {{ p.interval }}s
-                </p>
-                <p v-if="latest(p.id)" class="probe-message">
-                  {{ latest(p.id)?.message }}
-                </p>
-                <footer>
-                  <button
-                    v-if="latest(p.id)"
-                    class="text-button"
-                    @click="sampleView = latest(p.id)!"
-                  >
-                    结果详情</button
-                  ><label class="check-row"
-                    ><input
-                      type="checkbox"
-                      v-model="p.enabled"
-                      @change="markDirty"
-                    />自动检测</label
-                  ><button
-                    class="text-button"
-                    :disabled="busy"
-                    @click="runProbe(p)"
-                  >
-                    <Play :size="12" />运行一次
-                  </button>
-                </footer>
-              </div>
-              <p v-if="!deviceProbes.length" class="muted">
-                尚无检测。添加后可手动运行，不必开启自动监控。
-              </p>
-              <button
-                v-if="editing"
-                class="text-button danger delete-device"
-                @click="removeDevice"
-              >
-                <Trash2 :size="14" />删除设备
-              </button>
-            </div></template
-          >
-          <template v-else-if="panel === 'incidents'"
-            ><div class="inspector-heading">
-              <span>故障黑匣子</span><Activity :size="17" />
+              </footer>
             </div>
-            <div class="inspector-body">
-              <p class="muted">
-                连续失败达到阈值后生成事件；连续两次成功确认恢复。位置变化与停机记为中断。
-              </p>
-              <div v-if="!incidents.length" class="empty-inline">
-                暂无故障事件
-              </div>
-              <button
-                v-for="i in incidents"
-                :key="i.id"
-                class="incident-card"
-                @click="guarded(() => openEvidence(i.id))"
-              >
-                <span
-                  class="pill"
-                  :class="i.status === 'open' ? 'failed' : ''"
-                  >{{
-                    i.status === "open"
-                      ? "待恢复"
-                      : i.status === "resolved"
-                        ? "已恢复"
-                        : "已中断"
-                  }}</span
-                ><strong>{{ i.body.probe_label }}</strong>
-                <p>{{ i.body.device }} · {{ fmtDate(i.started) }}</p>
-                <small>{{ i.body.result.message }}</small
-                ><span class="mono">#{{ i.id }}</span>
-              </button>
-              <h3 class="subheading">接入与采集事件</h3>
-              <div
-                v-for="event in events.slice(0, 12)"
-                :key="event.id"
-                class="event-row"
-              >
-                <Clock :size="13" />
-                <div>
-                  {{ event.body.message || event.kind
-                  }}<small>{{ fmtDate(event.at) }}</small>
-                </div>
-              </div>
-            </div></template
-          >
-          <template v-else-if="panel === 'report'">
-            <div class="inspector-heading">
-              <span>诊断导出</span><FileText :size="17" />
+            <p v-if="!deviceProbes.length" class="muted">
+              尚无检测。添加后可手动运行，不必开启自动监控。
+            </p>
+            <button
+              v-if="editing"
+              class="text-button danger delete-device"
+              @click="removeDevice"
+            >
+              <Trash2 :size="14" />删除设备
+            </button>
+          </div></template
+        >
+        <template v-else-if="panel === 'incidents'"
+          ><div class="inspector-heading">
+            <span>故障黑匣子</span><Activity :size="17" />
+          </div>
+          <div class="inspector-body">
+            <p class="muted">
+              连续失败达到阈值后生成事件；连续两次成功确认恢复。位置变化与停机记为中断。
+            </p>
+            <div v-if="!incidents.length" class="empty-inline">
+              暂无故障事件
             </div>
-            <div class="inspector-body report-panel">
-              <div class="tip">
-                <span
-                  >下载问题日记或 JSON，自行交给 AI。无需账号或 API 密钥。</span
-                >
+            <button
+              v-for="i in incidents"
+              :key="i.id"
+              class="incident-card"
+              @click="guarded(() => openEvidence(i.id))"
+            >
+              <span class="pill" :class="i.status === 'open' ? 'failed' : ''">{{
+                i.status === "open"
+                  ? "待恢复"
+                  : i.status === "resolved"
+                    ? "已恢复"
+                    : "已中断"
+              }}</span
+              ><strong>{{ i.body.probe_label }}</strong>
+              <p>{{ i.body.device }} · {{ fmtDate(i.started) }}</p>
+              <small>{{ i.body.result.message }}</small
+              ><span class="mono">#{{ i.id }}</span>
+            </button>
+            <h3 class="subheading">接入与采集事件</h3>
+            <div
+              v-for="event in events.slice(0, 12)"
+              :key="event.id"
+              class="event-row"
+            >
+              <Clock :size="13" />
+              <div>
+                {{ event.body.message || event.kind
+                }}<small>{{ fmtDate(event.at) }}</small>
               </div>
+            </div>
+          </div></template
+        >
+        <template v-else-if="panel === 'report'">
+          <div class="inspector-heading">
+            <span>诊断导出</span><FileText :size="17" />
+          </div>
+          <div class="inspector-body report-panel">
+            <div class="tip">
+              <span
+                >下载问题日记或 JSON，自行交给 AI。无需账号或 API 密钥。</span
+              >
+            </div>
+            <label
+              >问题描述<textarea
+                v-model="reportNotes.issue"
+                rows="3"
+                maxlength="4000"
+                placeholder="例如：手机无法打印，但 Mac 能看到 USB 打印机"
+              />
+            </label>
+            <details class="report-background">
+              <summary>补充背景（可选）</summary>
               <label
-                >问题描述<textarea
-                  v-model="reportNotes.issue"
-                  rows="3"
-                  maxlength="4000"
-                  placeholder="例如：手机无法打印，但 Mac 能看到 USB 打印机"
+                >何时发生<input
+                  v-model="reportNotes.observed_at"
+                  maxlength="200"
+                  placeholder="日期、时间与时区；不确定可留空"
+              /></label>
+              <label
+                >影响范围<textarea
+                  v-model="reportNotes.impact"
+                  rows="2"
+                  maxlength="2000"
+                  placeholder="哪些设备、接口或服务受影响？"
                 />
               </label>
-              <details class="report-background">
-                <summary>补充背景（可选）</summary>
-                <label
-                  >何时发生<input
-                    v-model="reportNotes.observed_at"
-                    maxlength="200"
-                    placeholder="日期、时间与时区；不确定可留空"
-                /></label>
-                <label
-                  >影响范围<textarea
-                    v-model="reportNotes.impact"
-                    rows="2"
-                    maxlength="2000"
-                    placeholder="哪些设备、接口或服务受影响？"
-                  />
-                </label>
-                <label
-                  >最近改动<textarea
-                    v-model="reportNotes.recent_changes"
-                    rows="2"
-                    maxlength="4000"
-                  />
-                </label>
-                <label
-                  >已尝试的操作与结果<textarea
-                    v-model="reportNotes.attempts"
-                    rows="2"
-                    maxlength="4000"
-                  />
-                </label>
-              </details>
               <label
-                >重点故障<select v-model="selectedIncident">
-                  <option value="">不指定</option>
-                  <option v-for="i in incidents" :value="i.id" :key="i.id">
-                    {{ i.body.probe_label }} · {{ fmtDate(i.started) }}
-                  </option>
-                </select></label
-              >
-              <p class="muted">
-                导出此站点全部保留记录；重点故障只作标记，不删前后证据。
-              </p>
-              <button
-                class="button primary full"
-                :disabled="busy || !site"
-                @click="prepareReport"
-              >
-                <FileText :size="15" />{{
-                  busy ? "正在生成…" : "生成并预览诊断报告"
-                }}
-              </button>
-              <template v-if="diagnostic">
-                <p class="muted">
-                  {{ fmtDate(diagnostic.report.generated_at) }} 生成 ·
-                  {{ diagnostic.report.coverage.counts.samples }} 条检测 ·
-                  {{ diagnostic.report.coverage.counts.incidents }} 个故障
-                </p>
-                <div class="report-actions">
-                  <button class="button" @click="downloadReport('md')">
-                    下载问题日记 .md
-                  </button>
-                  <button class="button" @click="downloadReport('json')">
-                    下载诊断 JSON
-                  </button>
-                  <button class="button" @click="reportPreview = true">
-                    查看报告
-                  </button>
-                  <button class="text-button" @click="copyGuide">
-                    复制给 AI 的排查说明
-                  </button>
-                </div>
-              </template>
-              <p class="muted">
-                常见凭据会脱敏；IP、SSID、BSSID、主机名和备注保留。分享前请检查，勿将原始报告公开上传。
-              </p>
-            </div>
-          </template>
-          <template v-else
-            ><div class="inspector-heading">
-              <span>连接设置</span><Settings :size="17" />
-            </div>
-            <div class="settings-tabs">
-              <button
-                :class="{ active: settingsTab === 'general' }"
-                @click="settingsTab = 'general'"
-              >
-                常规</button
-              ><button
-                :class="{ active: settingsTab === 'credentials' }"
-                @click="settingsTab = 'credentials'"
-              >
-                设备凭据</button
-              ><button
-                :class="{ active: settingsTab === 'hosts' }"
-                @click="settingsTab = 'hosts'"
-              >
-                主机公钥
-              </button>
-            </div>
-            <div class="inspector-body">
-              <template v-if="settingsTab === 'general'"
-                ><label v-if="site"
-                  >站点名称<input
-                    v-model="site.name"
-                    :disabled="busy"
-                    @input="markDirty"
-                /></label>
-                <div v-if="state.context.capabilities" class="tip">
-                  <span
-                    >当前平台：{{
-                      state.context.platform === "win32"
-                        ? "Windows"
-                        : state.context.platform === "darwin"
-                          ? "macOS"
-                          : "开发预览"
-                    }}<br />
-                    接口绑定：{{
-                      state.context.capabilities.ipv4_interface_binding
-                    }}<br />
-                    Wi-Fi：{{ state.context.capabilities.wifi }} · 打印：{{
-                      state.context.capabilities.printing
-                    }}<br />
-                    绑定接口的 ICMP：{{
-                      state.context.capabilities.interface_bound_ping ===
-                      "implemented"
-                        ? "已实现"
-                        : "未支持，请使用 TCP/DNS/HTTP"
-                    }}
-                  </span>
-                </div>
-                <p class="muted">
-                  诊断报告在本机生成，在「诊断导出」下载后自行分享；无需配置
-                  AI。
-                </p>
-                <button
-                  v-if="state.context.platform === 'win32'"
-                  class="button"
-                  :disabled="busy"
-                  @click="quitPrompt = true"
-                >
-                  <Power :size="15" />退出工作台
-                </button>
-                <p v-if="state.context.platform === 'win32'" class="muted">
-                  关闭网页不会停止程序；退出工作台会停止本机采集。
-                </p> </template
-              ><template v-else-if="settingsTab === 'credentials'"
-                ><div class="tip">
-                  当前设备：{{ device?.label || "请先在画布选择设备" }}
-                </div>
-                <label
-                  >SSH 密码<input
-                    type="password"
-                    v-model="credential.password"
-                    autocomplete="new-password" /></label
-                ><label
-                  >SSH 私钥（密码或私钥二选一）<textarea
-                    v-model="credential.private_key"
-                    rows="4"
-                    placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
-                  /></label
-                ><label
-                  >Mihomo API 密钥<input
-                    type="password"
-                    v-model="credential.api_token"
-                    autocomplete="new-password" /></label
-                ><button
-                  class="button primary full"
-                  :disabled="!device || busy"
-                  @click="saveCredential"
-                >
-                  保存到系统钥匙串
-                </button>
-                <p class="muted">
-                  系统钥匙串不可用时会报错，不降级为明文文件。修改后保存会替换该设备整组凭据。
-                </p></template
-              ><template v-else
-                ><p class="muted">
-                  从可信渠道核实服务器公钥后，粘贴 OpenSSH known_hosts
-                  记录。此操作替换本工具已有记录；请包含仍需信任的全部主机。
-                </p>
-                <textarea
-                  v-model="knownHosts"
-                  rows="8"
-                  placeholder="hostname ssh-ed25519 AAAA…"
-                /><button
-                  class="button primary full"
-                  :disabled="busy"
-                  @click="saveKnownHosts"
-                >
-                  保存已核实的公钥
-                </button></template
-              >
-              <hr />
+                >最近改动<textarea
+                  v-model="reportNotes.recent_changes"
+                  rows="2"
+                  maxlength="4000"
+                />
+              </label>
               <label
-                >历史保留天数（1–30）<input
-                  type="number"
-                  :value="state.retention_days || 7"
-                  min="1"
-                  max="30"
-                  @change="
-                    guarded(async () => {
-                      await api('/retention', {
-                        days: Number(($event.target as HTMLInputElement).value),
-                      });
-                      await refresh();
-                    })
-                  "
-              /></label>
-              <div class="tip">
-                <ShieldCheck :size="17" /><span
-                  >工作台仅监听本机。首版不开放公网管理，不自动修改
-                  LAN、DHCP、防火墙或路由。</span
-                >
+                >已尝试的操作与结果<textarea
+                  v-model="reportNotes.attempts"
+                  rows="2"
+                  maxlength="4000"
+                />
+              </label>
+            </details>
+            <label
+              >重点故障<select v-model="selectedIncident">
+                <option value="">不指定</option>
+                <option v-for="i in incidents" :value="i.id" :key="i.id">
+                  {{ i.body.probe_label }} · {{ fmtDate(i.started) }}
+                </option>
+              </select></label
+            >
+            <p class="muted">
+              导出此站点全部保留记录；重点故障只作标记，不删前后证据。
+            </p>
+            <button
+              class="button primary full"
+              :disabled="busy || !site"
+              @click="prepareReport"
+            >
+              <FileText :size="15" />{{
+                busy ? "正在生成…" : "生成并预览诊断报告"
+              }}
+            </button>
+            <template v-if="diagnostic">
+              <p class="muted">
+                {{ fmtDate(diagnostic.report.generated_at) }} 生成 ·
+                {{ diagnostic.report.coverage.counts.samples }} 条检测 ·
+                {{ diagnostic.report.coverage.counts.incidents }} 个故障
+              </p>
+              <div class="report-actions">
+                <button class="button" @click="downloadReport('md')">
+                  下载问题日记 .md
+                </button>
+                <button class="button" @click="downloadReport('json')">
+                  下载诊断 JSON
+                </button>
+                <button class="button" @click="reportPreview = true">
+                  查看报告
+                </button>
+                <button class="text-button" @click="copyGuide">
+                  复制给 AI 的排查说明
+                </button>
               </div>
+            </template>
+            <p class="muted">
+              常见凭据会脱敏；IP、SSID、BSSID、主机名和备注保留。分享前请检查，勿将原始报告公开上传。
+            </p>
+          </div>
+        </template>
+        <template v-else
+          ><div class="inspector-heading">
+            <span>连接设置</span><Settings :size="17" />
+          </div>
+          <div class="settings-tabs">
+            <button
+              :class="{ active: settingsTab === 'general' }"
+              @click="settingsTab = 'general'"
+            >
+              常规</button
+            ><button
+              :class="{ active: settingsTab === 'credentials' }"
+              @click="settingsTab = 'credentials'"
+            >
+              设备凭据</button
+            ><button
+              :class="{ active: settingsTab === 'hosts' }"
+              @click="settingsTab = 'hosts'"
+            >
+              主机公钥
+            </button>
+          </div>
+          <div class="inspector-body">
+            <template v-if="settingsTab === 'general'"
+              ><label v-if="site"
+                >站点名称<input
+                  v-model="site.name"
+                  :disabled="busy"
+                  @input="markDirty"
+              /></label>
+              <div v-if="state.context.capabilities" class="tip">
+                <span
+                  >当前平台：{{
+                    state.context.platform === "win32"
+                      ? "Windows"
+                      : state.context.platform === "darwin"
+                        ? "macOS"
+                        : "开发预览"
+                  }}<br />
+                  接口绑定：{{
+                    state.context.capabilities.ipv4_interface_binding
+                  }}<br />
+                  Wi-Fi：{{ state.context.capabilities.wifi }} · 打印：{{
+                    state.context.capabilities.printing
+                  }}<br />
+                  绑定接口的 ICMP：{{
+                    state.context.capabilities.interface_bound_ping ===
+                    "implemented"
+                      ? "已实现"
+                      : "未支持，请使用 TCP/DNS/HTTP"
+                  }}
+                </span>
+              </div>
+              <p class="muted">
+                诊断报告在本机生成，在「诊断导出」下载后自行分享；无需配置 AI。
+              </p>
               <button
-                class="text-button danger"
-                :disabled="!site || busy"
-                @click="deleteSite"
+                v-if="state.context.platform === 'win32'"
+                class="button"
+                :disabled="busy"
+                @click="quitPrompt = true"
               >
-                删除当前站点与历史
+                <Power :size="15" />退出工作台
               </button>
-            </div></template
-          >
-        </aside>
-      </div>
+              <p v-if="state.context.platform === 'win32'" class="muted">
+                关闭网页不会停止程序；退出工作台会停止本机采集。
+              </p> </template
+            ><template v-else-if="settingsTab === 'credentials'"
+              ><div class="tip">
+                当前设备：{{ device?.label || "请先在画布选择设备" }}
+              </div>
+              <label
+                >SSH 密码<input
+                  type="password"
+                  v-model="credential.password"
+                  autocomplete="new-password" /></label
+              ><label
+                >SSH 私钥（密码或私钥二选一）<textarea
+                  v-model="credential.private_key"
+                  rows="4"
+                  placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+                /></label
+              ><label
+                >Mihomo API 密钥<input
+                  type="password"
+                  v-model="credential.api_token"
+                  autocomplete="new-password" /></label
+              ><button
+                class="button primary full"
+                :disabled="!device || busy"
+                @click="saveCredential"
+              >
+                保存到系统钥匙串
+              </button>
+              <p class="muted">
+                系统钥匙串不可用时会报错，不降级为明文文件。修改后保存会替换该设备整组凭据。
+              </p></template
+            ><template v-else
+              ><p class="muted">
+                从可信渠道核实服务器公钥后，粘贴 OpenSSH known_hosts
+                记录。此操作替换本工具已有记录；请包含仍需信任的全部主机。
+              </p>
+              <textarea
+                v-model="knownHosts"
+                rows="8"
+                placeholder="hostname ssh-ed25519 AAAA…"
+              /><button
+                class="button primary full"
+                :disabled="busy"
+                @click="saveKnownHosts"
+              >
+                保存已核实的公钥
+              </button></template
+            >
+            <hr />
+            <label
+              >历史保留天数（1–30）<input
+                type="number"
+                :value="state.retention_days || 7"
+                min="1"
+                max="30"
+                @change="
+                  guarded(async () => {
+                    await api('/retention', {
+                      days: Number(($event.target as HTMLInputElement).value),
+                    });
+                    await refresh();
+                  })
+                "
+            /></label>
+            <div class="tip">
+              <ShieldCheck :size="17" /><span
+                >工作台仅监听本机。首版不开放公网管理，不自动修改
+                LAN、DHCP、防火墙或路由。</span
+              >
+            </div>
+            <button
+              class="text-button danger"
+              :disabled="!site || busy"
+              @click="deleteSite"
+            >
+              删除当前站点与历史
+            </button>
+          </div></template
+        >
+      </aside>
     </div>
+    <footer class="statusbar">
+      <span><ShieldCheck :size="12" />LOCAL WORKSPACE</span
+      ><span
+        >{{ enabledCount }} 项检测已启用 ·
+        {{ contextUp.length }} 个可用接口</span
+      ><span
+        >{{
+          state.context.platform === "win32"
+            ? "Windows"
+            : state.context.platform === "darwin"
+              ? "macOS"
+              : "跨平台"
+        }}
+        · v{{ appVersion }}</span
+      >
+    </footer>
     <div
       v-if="probeDraft"
       class="modal-backdrop"
@@ -1714,9 +2010,7 @@ window.addEventListener("beforeunload", (e) => {
           采集已停止，可以关闭页面。重新打开程序后，已保存的数据仍可使用。
         </p>
         <template v-else>
-          <p>
-            退出会停止本机工作台和采集，已保存的站点和记录将保留。
-          </p>
+          <p>退出会停止本机工作台和采集，已保存的站点和记录将保留。</p>
           <p v-if="dirty">
             有未保存的拓扑修改。可取消并保存，或放弃修改后退出。
           </p>

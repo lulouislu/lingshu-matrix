@@ -2,5 +2,5 @@
 
 The macnet import path and persisted identifiers remain compatible with MacNet Lab.
 """
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 DISPLAY_NAME = "灵枢 · LingShu Matrix"

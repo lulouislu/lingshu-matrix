@@ -13,7 +13,17 @@ import {
 import { kinds, statusNames } from "./graph";
 import type { Device, Status } from "./types";
 const props = defineProps<{
-  data: { device: Device; status: Status; editing: boolean };
+  data: {
+    device: Device;
+    status: Status;
+    editing: boolean;
+    evidence: {
+      latency: number | null;
+      at: number | null;
+      cpu: number | null;
+      memory: number | null;
+    };
+  };
 }>();
 const icons: Record<string, any> = {
   gateway: Router,
@@ -34,8 +44,8 @@ const icons: Record<string, any> = {
         ><component :is="icons[data.device.kind] || Box" :size="18"
       /></span>
       <div class="node-title">
-        <small>{{ kinds[data.device.kind] }}</small
-        ><strong>{{ data.device.label }}</strong>
+        <strong :title="data.device.label">{{ data.device.label }}</strong>
+        <small>{{ kinds[data.device.kind] }}</small>
       </div>
       <span
         class="status-dot"
@@ -83,6 +93,53 @@ const icons: Record<string, any> = {
     </div>
     <div v-if="data.device.services.length" class="node-services">
       <span v-for="s in data.device.services" :key="s">{{ s }}</span>
+    </div>
+    <div
+      class="node-telemetry"
+      v-if="data.evidence.cpu !== null || data.evidence.memory !== null"
+    >
+      <div class="telemetry-item">
+        <span
+          >CPU
+          <b>{{
+            data.evidence.cpu === null
+              ? "—"
+              : data.evidence.cpu.toFixed(0) + "%"
+          }}</b></span
+        >
+        <i><em :style="{ width: (data.evidence.cpu ?? 0) + '%' }"></em></i>
+      </div>
+      <div class="telemetry-item memory">
+        <span
+          >MEM
+          <b>{{
+            data.evidence.memory === null
+              ? "—"
+              : data.evidence.memory.toFixed(0) + "%"
+          }}</b></span
+        >
+        <i><em :style="{ width: (data.evidence.memory ?? 0) + '%' }"></em></i>
+      </div>
+      <span class="node-latency" title="最近一次有耗时记录的检测">{{
+        data.evidence.latency === null
+          ? "— ms"
+          : data.evidence.latency.toFixed(1) + " ms"
+      }}</span>
+    </div>
+    <div class="node-evidence-caption">
+      <span
+        >检测{{ statusNames[data.status]
+        }}<b v-if="data.evidence.latency !== null">
+          · {{ data.evidence.latency.toFixed(1) }} ms</b
+        ></span
+      >
+      <time>{{
+        data.evidence.at
+          ? new Date(data.evidence.at * 1000).toLocaleTimeString("zh-CN", {
+              hour12: false,
+            })
+          : "尚无记录"
+      }}</time>
     </div>
   </div>
 </template>
